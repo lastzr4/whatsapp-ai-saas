@@ -154,10 +154,11 @@ export async function startBot(userId) {
     }),
     puppeteer: {
       headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",   // prevents crashes on low-memory
+        "--disable-dev-shm-usage",
         "--disable-gpu",
         "--no-zygote",
       ],
