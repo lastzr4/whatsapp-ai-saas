@@ -494,6 +494,20 @@ export default function Admin() {
           onSave={() => { fetchAll(); showGlobalMsg("✅ Perubahan disimpan!"); }}
         />
       )}
+
+      {/* Mobile Bottom Nav */}
+      <nav className="bottom-nav">
+        {ADMIN_NAV.map(n => (
+          <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
+            <span className="nav-icon">{n.icon}</span>
+            <span>{n.label}</span>
+          </button>
+        ))}
+        <button className="bottom-nav-item" onClick={()=>navigate("/dashboard")}>
+          <span className="nav-icon">👤</span>
+          <span>User</span>
+        </button>
+      </nav>
     </div>
   );
 }
