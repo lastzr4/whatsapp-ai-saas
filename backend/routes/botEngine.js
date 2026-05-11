@@ -248,6 +248,8 @@ export async function startBot(userId) {
       await safeSend(() => chat.sendStateTyping());
 
       // ── Payment QR ────────────────────────────────────────────────────────
+      // If it's a payment query AND we have a QR image, send it and stop.
+      // Don't call Claude — avoids contradictory replies.
       if (isPaymentQuery(userText)) {
         const qrImagePath = path.join(process.env.DATA_ROOT || path.join(__dirname, "../.."), `uploads/${userId}/payment-qr.jpg`);
         if (fs.existsSync(qrImagePath)) {
@@ -257,7 +259,14 @@ export async function startBot(userId) {
             await chat.sendMessage(media, { caption });
             console.log(`💳 Payment QR sent for user ${userId}`);
           });
+          // Log and stop — no Claude reply needed
+          try {
+            db.prepare("INSERT INTO message_logs (user_id, sender, message, reply) VALUES (?, ?, ?, ?)")
+              .run(userId, senderNumber, userText, "[QR Pembayaran dihantar]");
+          } catch {}
+          return; // ← stop here, don't call Claude
         }
+        // No QR image uploaded yet — let Claude handle it normally
       }
 
       // ── AI reply ──────────────────────────────────────────────────────────
