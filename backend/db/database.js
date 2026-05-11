@@ -68,9 +68,19 @@ export function initDb() {
   `);
 
   const migrations = [
-    { name: "users_is_admin",     sql: "ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0" },
-    { name: "users_max_messages", sql: "ALTER TABLE users ADD COLUMN max_messages INTEGER DEFAULT 1000" },
-    { name: "users_notes",        sql: "ALTER TABLE users ADD COLUMN notes TEXT DEFAULT ''" },
+    { name: "users_is_admin",       sql: "ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0" },
+    { name: "users_max_messages",   sql: "ALTER TABLE users ADD COLUMN max_messages INTEGER DEFAULT 1000" },
+    { name: "users_notes",          sql: "ALTER TABLE users ADD COLUMN notes TEXT DEFAULT ''" },
+    { name: "users_is_verified",    sql: "ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 0" },
+    { name: "tokens_table", sql: `CREATE TABLE IF NOT EXISTS auth_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      token TEXT UNIQUE NOT NULL,
+      type TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )` },
   ];
 
   for (const m of migrations) {

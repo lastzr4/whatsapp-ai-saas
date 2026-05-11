@@ -13,6 +13,7 @@ import configRoutes from "./routes/config.js";
 import botRoutes from "./routes/bot.js";
 import adminRoutes from "./routes/admin.js";
 import { restoreActiveBots } from "./routes/botEngine.js";
+import { verifyEmailConfig } from "./services/email.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -44,6 +45,10 @@ app.get("/api/health", (_, res) => res.json({
   env: process.env.NODE_ENV || "development",
 }));
 
+// Email verification link — GET /verify-email?token=xxx
+// Auth router handles this, but we need it accessible without /api prefix too
+app.get("/verify-email", (req, res) => res.redirect(`/api/auth/verify-email?token=${req.query.token || ""}`));
+
 // ── Serve built React frontend ────────────────────────────────────────────────
 const FRONTEND_DIST = path.join(__dirname, "../frontend/dist");
 if (fs.existsSync(FRONTEND_DIST)) {
@@ -68,4 +73,5 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`📁 Data root     : ${DATA_ROOT}`);
   console.log("=".repeat(50) + "\n");
   restoreActiveBots();
+  verifyEmailConfig(); // Check email connectivity
 });
