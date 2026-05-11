@@ -30,18 +30,7 @@ initDb();
 
 const app = express();
 
-// ── CORS ──────────────────────────────────────────────────────────────────────
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim())
-  : ["http://localhost:3000", "http://localhost:3001"];
-
-app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-    cb(new Error("Not allowed by CORS"));
-  },
-  credentials: true,
-}));
+app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
 // ── API Routes ────────────────────────────────────────────────────────────────
