@@ -1,0 +1,17 @@
+{
+  "name": "whatsapp-ai-saas",
+  "version": "1.0.0",
+  "description": "WhatsApp AI Bot SaaS Platform",
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "start": "node backend/server.js",
+    "dev:backend": "node --watch backend/server.js",
+    "dev:frontend": "vite --prefix frontend",
+    "setup": "npm run install:all && npm run build",
+    "create-admin": "node backend/create-admin.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
