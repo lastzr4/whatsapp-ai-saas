@@ -1,8 +1,6 @@
 FROM node:20-bullseye-slim
 
-# Install system dependencies needed by:
-# - better-sqlite3 (python3, make, g++)
-# - puppeteer/chromium (chromium + deps)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
@@ -27,27 +25,20 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Tell puppeteer to use system chromium instead of downloading its own
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-# Install backend dependencies
-COPY backend/package.json ./backend/
-RUN npm install --prefix backend
+# Copy everything first
+COPY . .
 
-# Install & build frontend
-COPY frontend/package.json ./frontend/
+# Install backend & frontend, then build
+RUN npm install --prefix backend
 RUN npm install --prefix frontend
-COPY frontend/ ./frontend/
 RUN npm run build --prefix frontend
 
-# Copy backend source
-COPY backend/ ./backend/
-COPY package.json ./
-
-# Create data directories (will be overridden by Railway volume)
+# Create data directories (overridden by Railway volume)
 RUN mkdir -p /data/data /data/uploads /data/sessions
 
 EXPOSE 3001
