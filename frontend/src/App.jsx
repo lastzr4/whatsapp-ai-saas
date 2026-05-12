@@ -9,6 +9,14 @@ function PrivateRoute({ children }) {
   return localStorage.getItem("token") ? children : <Navigate to="/login" />;
 }
 
+function AdminRoute({ children }) {
+  const token = localStorage.getItem("token");
+  const user  = JSON.parse(localStorage.getItem("user") || "{}");
+  if (!token) return <Navigate to="/login" />;
+  if (!user.is_admin) return <Navigate to="/dashboard" />;
+  return children;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -17,7 +25,7 @@ export default function App() {
         <Route path="/register"       element={<Register />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard"      element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/admin"          element={<PrivateRoute><Admin /></PrivateRoute>} />
+        <Route path="/admin"          element={<AdminRoute><Admin /></AdminRoute>} />
         <Route path="*"               element={<Navigate to="/dashboard" />} />
       </Routes>
     </BrowserRouter>

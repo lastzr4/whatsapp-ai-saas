@@ -18,8 +18,8 @@ export default function Login() {
     try {
       const data = await api("POST","/auth/login",form);
       localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify({ name:data.name, email:data.email }));
-      navigate("/dashboard");
+      localStorage.setItem("user", JSON.stringify({ name:data.name, email:data.email, is_admin:data.is_admin }));
+      navigate(data.is_admin ? "/admin" : "/dashboard");
     } catch(err) {
       if (err.message.includes("sahkan email") || err.message.includes("requiresVerification")) {
         setUnverifiedEmail(form.email);
