@@ -158,7 +158,7 @@ router.post("/create-admin", async (req, res) => {
     return res.status(400).json({ error: "All fields required" });
   try {
     const hashed = await bcrypt.hash(password, 10);
-    db.prepare("INSERT INTO users (email, password, name, is_admin) VALUES (?, ?, ?, 1)")
+    db.prepare("INSERT INTO users (email, password, name, is_admin, is_verified) VALUES (?, ?, ?, 1, 1)")
       .run(email, hashed, name);
     res.json({ success: true });
   } catch (err) {
@@ -166,6 +166,33 @@ router.post("/create-admin", async (req, res) => {
       return res.status(400).json({ error: "Email already exists" });
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── DB Viewer ─────────────────────────────────────────────────────────────────
+router.get("/db/users", (req, res) => {
+  const users = db.prepare(
+    "SELECT id, email, name, plan, is_active, is_admin, is_verified, max_messages, created_at FROM users ORDER BY id DESC"
+  ).all();
+  res.json(users);
+});
+
+router.get("/db/sessions", (req, res) => {
+  const sessions = db.prepare(
+    "SELECT s.*, u.email FROM bot_sessions s LEFT JOIN users u ON u.id = s.user_id ORDER BY s.id DESC"
+  ).all();
+  res.json(sessions);
+});
+
+// ── Fix — verify all unverified users ────────────────────────────────────────
+router.post("/db/verify-all-users", (req, res) => {
+  const result = db.prepare("UPDATE users SET is_verified = 1 WHERE is_verified = 0").run();
+  res.json({ success: true, updated: result.changes });
+});
+
+// ── Fix — verify single user ──────────────────────────────────────────────────
+router.post("/db/verify-user/:id", (req, res) => {
+  db.prepare("UPDATE users SET is_verified = 1 WHERE id = ?").run(req.params.id);
+  res.json({ success: true });
 });
 
 export default router;

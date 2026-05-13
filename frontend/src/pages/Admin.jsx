@@ -3,7 +3,136 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
 
 const PLANS = ["basic", "pro", "enterprise"];
-const TABS  = ["📊 Overview", "👥 Tenants", "📋 Semua Log"];
+const TABS  = ["📊 Overview", "👥 Tenants", "📋 Semua Log", "🗄️ Database"];
+
+// ── DB Viewer Component ───────────────────────────────────────────────────────
+function DbViewer() {
+  const [users, setUsers]       = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [msg, setMsg]           = useState("");
+
+  async function load() {
+    setLoading(true);
+    try {
+      const [u, s] = await Promise.all([
+        api("GET", "/admin/db/users"),
+        api("GET", "/admin/db/sessions"),
+      ]);
+      setUsers(u); setSessions(s);
+    } catch(e) { setMsg("Error: " + e.message); }
+    setLoading(false);
+  }
+
+  async function verifyAll() {
+    if (!confirm("Verify semua user yang belum verified?")) return;
+    const r = await api("POST", "/admin/db/verify-all-users");
+    setMsg(`✅ ${r.updated} user dah diverify`);
+    load();
+  }
+
+  async function verifyUser(id, email) {
+    await api("POST", `/admin/db/verify-user/${id}`);
+    setMsg(`✅ ${email} dah diverify`);
+    load();
+  }
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) return <div className="card" style={{ textAlign:"center",padding:40 }}><span className="spinner spinner-dark" style={{ width:28,height:28,display:"inline-block" }} /></div>;
+
+  return (
+    <div style={{ display:"flex",flexDirection:"column",gap:16 }}>
+      {msg && <div className="alert alert-success">{msg}</div>}
+
+      {/* Users table */}
+      <div className="card" style={{ padding:0,overflow:"hidden" }}>
+        <div style={{ padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid #e2e8f0",flexWrap:"wrap",gap:10 }}>
+          <div>
+            <div style={{ fontWeight:700,fontSize:16 }}>👥 Users ({users.length})</div>
+            <div style={{ fontSize:12,color:"#94a3b8",marginTop:2 }}>Semua akaun dalam database</div>
+          </div>
+          <div style={{ display:"flex",gap:8 }}>
+            <button className="btn btn-secondary btn-sm" onClick={load}>🔄 Refresh</button>
+            <button className="btn btn-primary btn-sm" onClick={verifyAll}>✅ Verify All</button>
+          </div>
+        </div>
+        <div style={{ overflowX:"auto" }}>
+          <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+            <thead>
+              <tr style={{ background:"#f8fafc" }}>
+                {["ID","Email","Name","Plan","Active","Admin","Verified","Created"].map(h=>(
+                  <th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>
+                ))}
+                <th style={{ padding:"10px 14px",borderBottom:"1px solid #e2e8f0" }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u=>(
+                <tr key={u.id} style={{ borderBottom:"1px solid #f1f5f9" }}>
+                  <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{u.id}</td>
+                  <td style={{ padding:"10px 14px",fontWeight:500 }}>{u.email}</td>
+                  <td style={{ padding:"10px 14px" }}>{u.name}</td>
+                  <td style={{ padding:"10px 14px" }}><span className="badge badge-gray">{u.plan}</span></td>
+                  <td style={{ padding:"10px 14px" }}>{u.is_active ? "✅":"❌"}</td>
+                  <td style={{ padding:"10px 14px" }}>{u.is_admin ? <span className="badge badge-purple">Admin</span> : "—"}</td>
+                  <td style={{ padding:"10px 14px" }}>
+                    {u.is_verified
+                      ? <span className="badge badge-green">✅ Yes</span>
+                      : <span className="badge badge-red">❌ No</span>
+                    }
+                  </td>
+                  <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(u.created_at).toLocaleDateString("ms-MY")}</td>
+                  <td style={{ padding:"10px 14px" }}>
+                    {!u.is_verified && (
+                      <button className="btn btn-primary btn-sm" style={{ fontSize:11 }} onClick={()=>verifyUser(u.id, u.email)}>
+                        Verify
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Sessions table */}
+      <div className="card" style={{ padding:0,overflow:"hidden" }}>
+        <div style={{ padding:"16px 20px",borderBottom:"1px solid #e2e8f0" }}>
+          <div style={{ fontWeight:700,fontSize:16 }}>🤖 Bot Sessions ({sessions.length})</div>
+          <div style={{ fontSize:12,color:"#94a3b8",marginTop:2 }}>Status WhatsApp setiap user</div>
+        </div>
+        <div style={{ overflowX:"auto" }}>
+          <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+            <thead>
+              <tr style={{ background:"#f8fafc" }}>
+                {["User ID","Email","Status","Phone","Updated"].map(h=>(
+                  <th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sessions.map(s=>(
+                <tr key={s.id} style={{ borderBottom:"1px solid #f1f5f9" }}>
+                  <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{s.user_id}</td>
+                  <td style={{ padding:"10px 14px" }}>{s.email||"—"}</td>
+                  <td style={{ padding:"10px 14px" }}>
+                    <span className={`badge ${s.status==="connected"?"badge-green":s.status==="qr_pending"?"badge-yellow":"badge-gray"}`}>
+                      {s.status}
+                    </span>
+                  </td>
+                  <td style={{ padding:"10px 14px" }}>{s.phone_number ? `+${s.phone_number}` : "—"}</td>
+                  <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(s.updated_at).toLocaleString("ms-MY")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Small reusable components ────────────────────────────────────────────────
 function StatCard({ icon, label, value, sub, color = "#25d366" }) {
@@ -254,6 +383,7 @@ export default function Admin() {
     { icon:"📊", label:"Overview",   id:0 },
     { icon:"👥", label:"Tenants",    id:1 },
     { icon:"📋", label:"Semua Log",  id:2 },
+    { icon:"🗄️", label:"Database",  id:3 },
   ];
 
   return (
@@ -483,6 +613,10 @@ export default function Admin() {
             }
           </div>
         )}
+
+        {/* ── TAB: Database ── */}
+        {tab === 3 && <DbViewer />}
+
       </div>
       </main>
 
@@ -494,6 +628,20 @@ export default function Admin() {
           onSave={() => { fetchAll(); showGlobalMsg("✅ Perubahan disimpan!"); }}
         />
       )}
+
+      {/* Mobile Bottom Nav */}
+      <nav className="bottom-nav">
+        {ADMIN_NAV.map(n => (
+          <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
+            <span className="nav-icon">{n.icon}</span>
+            <span>{n.label}</span>
+          </button>
+        ))}
+        <button className="bottom-nav-item" onClick={()=>navigate("/dashboard")}>
+          <span className="nav-icon">👤</span>
+          <span>User</span>
+        </button>
+      </nav>
     </div>
   );
 }
