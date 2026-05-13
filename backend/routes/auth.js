@@ -115,7 +115,7 @@ router.post("/login", async (req, res) => {
       return res.status(403).json({ error: "Akaun anda telah digantung. Hubungi admin." });
 
     // Check email verification (only if email is configured)
-    if (isEmailEnabled() && !user.is_verified) {
+    if (isEmailEnabled() && !user.is_verified && process.env.SKIP_EMAIL_VERIFY !== "true") {
       return res.status(403).json({
         error: "Sila sahkan email anda dahulu. Semak inbox atau folder spam anda.",
         requiresVerification: true,
