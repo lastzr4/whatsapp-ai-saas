@@ -36,8 +36,8 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Kata laluan minimum 6 aksara" });
 
     const hashed = await bcrypt.hash(password, 10);
-    // If email is not configured, auto-verify users
-    const isVerified = isEmailEnabled() ? 0 : 1;
+    // Auto-verify if email disabled or skip flag set
+    const isVerified = (!isEmailEnabled() || process.env.SKIP_EMAIL_VERIFY === "true") ? 1 : 0;
 
     const result = db.prepare(
       "INSERT INTO users (email, password, name, is_verified) VALUES (?, ?, ?, ?)"
@@ -49,8 +49,8 @@ router.post("/register", async (req, res) => {
     db.prepare("INSERT INTO bot_configs (user_id, bot_name) VALUES (?, ?)").run(userId, "AI Assistant");
     db.prepare("INSERT INTO bot_sessions (user_id) VALUES (?)").run(userId);
 
-    // Send verification email if email is configured
-    if (isEmailEnabled()) {
+    // Send verification email if email is configured AND skip not set
+    if (isEmailEnabled() && process.env.SKIP_EMAIL_VERIFY !== "true") {
       try {
         const token = createAuthToken(userId, "verify_email", 24);
         await sendVerificationEmail(email, name, token);
