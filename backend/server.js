@@ -45,6 +45,29 @@ app.get("/api/health", (_, res) => res.json({
   env: process.env.NODE_ENV || "development",
 }));
 
+// ── TEMPORARY ADMIN SETUP — remove after first use ────────────────────────────
+app.get("/api/setup-admin", async (req, res) => {
+  const { secret, email, password, name } = req.query;
+  if (!secret || secret !== process.env.JWT_SECRET?.slice(0, 12))
+    return res.status(403).json({ error: "Forbidden" });
+  if (!email || !password || !name)
+    return res.status(400).json({ error: "Provide email, password, name" });
+  try {
+    const bcrypt = (await import("bcryptjs")).default;
+    const { default: db } = await import("./db/database.js");
+    const hashed = await bcrypt.hash(password, 10);
+    db.prepare(`INSERT OR REPLACE INTO users
+      (email,password,name,is_admin,is_active,is_verified) VALUES (?,?,?,1,1,1)`)
+      .run(email, hashed, name);
+    const user = db.prepare("SELECT id,email,is_admin FROM users WHERE email=?").get(email);
+    console.log(`✅ Admin created via endpoint: ${email}`);
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// ── END TEMPORARY ─────────────────────────────────────────────────────────────
+
 // Email verification link — GET /verify-email?token=xxx
 // Auth router handles this, but we need it accessible without /api prefix too
 app.get("/verify-email", (req, res) => res.redirect(`/api/auth/verify-email?token=${req.query.token || ""}`));
