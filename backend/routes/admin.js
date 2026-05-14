@@ -195,4 +195,27 @@ router.post("/db/verify-user/:id", (req, res) => {
   res.json({ success: true });
 });
 
+// ── Add user directly ─────────────────────────────────────────────────────────
+router.post("/db/add-user", async (req, res) => {
+  const { name, email, password, plan, is_admin } = req.body;
+  if (!name || !email || !password)
+    return res.status(400).json({ error: "Nama, email dan kata laluan diperlukan" });
+  if (password.length < 6)
+    return res.status(400).json({ error: "Kata laluan minimum 6 aksara" });
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+    const result = db.prepare(
+      "INSERT INTO users (email, password, name, plan, is_admin, is_active, is_verified) VALUES (?, ?, ?, ?, ?, 1, 1)"
+    ).run(email, hashed, name, plan || "basic", is_admin ? 1 : 0);
+    const userId = result.lastInsertRowid;
+    db.prepare("INSERT INTO bot_configs (user_id, bot_name) VALUES (?, ?)").run(userId, "AI Assistant");
+    db.prepare("INSERT INTO bot_sessions (user_id) VALUES (?)").run(userId);
+    res.json({ success: true, id: userId });
+  } catch (err) {
+    if (err.message.includes("UNIQUE"))
+      return res.status(400).json({ error: "Email ini sudah didaftarkan" });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
