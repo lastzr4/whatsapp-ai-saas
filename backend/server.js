@@ -5,7 +5,26 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 
+// ── Load env FIRST ────────────────────────────────────────────────────────────
 dotenv.config();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ── Set DATA_ROOT before DB module initializes ────────────────────────────────
+// CRITICAL: database.js reads DATA_ROOT at module evaluation time.
+// We must set it here before the static imports below execute their top-level code.
+// In ESM, top-level code in imported modules runs when first imported.
+// Setting the env var here works because dotenv + this assignment runs
+// before any imported module's top-level code that reads it.
+const DATA_ROOT = process.env.DATA_PATH || path.join(__dirname, "..");
+process.env.DATA_ROOT = DATA_ROOT;
+
+// Create directories on volume
+["data", "uploads", "sessions"].forEach((dir) => {
+  const fullPath = path.join(DATA_ROOT, dir);
+  fs.mkdirSync(fullPath, { recursive: true });
+  console.log(`📁 ${dir}: ${fullPath}`);
+});
 
 import { initDb } from "./db/database.js";
 import authRoutes from "./routes/auth.js";
@@ -15,37 +34,26 @@ import adminRoutes from "./routes/admin.js";
 import { restoreActiveBots } from "./routes/botEngine.js";
 import { verifyEmailConfig } from "./services/email.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// ── Data directories ──────────────────────────────────────────────────────────
-// In production, set DATA_PATH to your Railway volume mount path e.g. /data
-const DATA_ROOT = process.env.DATA_PATH || path.join(__dirname, "..");
-["data", "uploads", "sessions"].forEach((dir) => {
-  const fullPath = path.join(DATA_ROOT, dir);
-  fs.mkdirSync(fullPath, { recursive: true });
-  console.log(`📁 ${dir}: ${fullPath}`);
-});
-process.env.DATA_ROOT = DATA_ROOT;
-
 initDb();
 
 const app = express();
-
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-// ── API Routes ────────────────────────────────────────────────────────────────
 app.use("/api/auth",   authRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/bot",    botRoutes);
 app.use("/api/admin",  adminRoutes);
+
 app.get("/api/health", (_, res) => res.json({
-  status: "ok",
-  timestamp: new Date().toISOString(),
-  env: process.env.NODE_ENV || "development",
+  status: "ok", timestamp: new Date().toISOString(), data_root: DATA_ROOT,
 }));
 
-// ── TEMPORARY ADMIN SETUP — remove after first use ────────────────────────────
+app.get("/verify-email", (req, res) =>
+  res.redirect(`/api/auth/verify-email?token=${req.query.token || ""}`)
+);
+
+// ── TEMP ADMIN SETUP ──────────────────────────────────────────────────────────
 app.get("/api/setup-admin", async (req, res) => {
   const { secret, email, password, name } = req.query;
   if (!secret || secret !== process.env.JWT_SECRET?.slice(0, 12))
@@ -56,23 +64,15 @@ app.get("/api/setup-admin", async (req, res) => {
     const bcrypt = (await import("bcryptjs")).default;
     const { default: db } = await import("./db/database.js");
     const hashed = await bcrypt.hash(password, 10);
-    db.prepare(`INSERT OR REPLACE INTO users
-      (email,password,name,is_admin,is_active,is_verified) VALUES (?,?,?,1,1,1)`)
+    db.prepare("INSERT OR REPLACE INTO users (email,password,name,is_admin,is_active,is_verified) VALUES (?,?,?,1,1,1)")
       .run(email, hashed, name);
     const user = db.prepare("SELECT id,email,is_admin FROM users WHERE email=?").get(email);
-    console.log(`✅ Admin created via endpoint: ${email}`);
+    console.log(`✅ Admin created: ${email}`);
     res.json({ success: true, user });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
-// ── END TEMPORARY ─────────────────────────────────────────────────────────────
+// ── END TEMP ──────────────────────────────────────────────────────────────────
 
-// Email verification link — GET /verify-email?token=xxx
-// Auth router handles this, but we need it accessible without /api prefix too
-app.get("/verify-email", (req, res) => res.redirect(`/api/auth/verify-email?token=${req.query.token || ""}`));
-
-// ── Serve built React frontend ────────────────────────────────────────────────
 const FRONTEND_DIST = path.join(__dirname, "../frontend/dist");
 if (fs.existsSync(FRONTEND_DIST)) {
   app.use(express.static(FRONTEND_DIST));
@@ -81,11 +81,8 @@ if (fs.existsSync(FRONTEND_DIST)) {
     res.sendFile(path.join(FRONTEND_DIST, "index.html"));
   });
   console.log("🌐 Serving React frontend from:", FRONTEND_DIST);
-} else {
-  console.warn("⚠️  Frontend dist not found. Run: npm run build");
 }
 
-// ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, "0.0.0.0", () => {
   console.log("\n" + "=".repeat(50));
@@ -96,5 +93,5 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`📁 Data root     : ${DATA_ROOT}`);
   console.log("=".repeat(50) + "\n");
   restoreActiveBots();
-  verifyEmailConfig(); // Check email connectivity
+  verifyEmailConfig();
 });

@@ -5,18 +5,33 @@ import fs from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// ── Lazy DB path — read env at runtime, not at import time ────────────────────
+// DATA_PATH env var is set in Dockerfile and Railway Variables
+// Falls back to project root for local dev
 function getDbPath() {
-  const dataRoot = process.env.DATA_ROOT || path.join(__dirname, "../..");
+  const dataRoot = process.env.DATA_PATH || process.env.DATA_ROOT || path.join(__dirname, "../..");
   const dataDir  = path.join(dataRoot, "data");
   fs.mkdirSync(dataDir, { recursive: true });
   return path.join(dataDir, "saas.db");
 }
 
-const db = new Database(getDbPath());
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+// ── Lazy DB instance ──────────────────────────────────────────────────────────
+let _db = null;
+
+function getDb() {
+  if (!_db) {
+    const dbPath = getDbPath();
+    console.log(`🗄️  Opening database: ${dbPath}`);
+    _db = new Database(dbPath);
+    _db.pragma("journal_mode = WAL");
+    _db.pragma("foreign_keys = ON");
+  }
+  return _db;
+}
 
 export function initDb() {
+  const db = getDb();
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,4 +121,11 @@ export function initDb() {
   console.log("✅ Database initialized:", getDbPath());
 }
 
-export default db;
+// ── Proxy export — routes call db.prepare() etc, this ensures lazy init ───────
+const dbProxy = new Proxy({}, {
+  get(_, prop) {
+    return getDb()[prop];
+  }
+});
+
+export default dbProxy;
