@@ -171,7 +171,7 @@ router.post("/create-admin", async (req, res) => {
 // ── DB Viewer ─────────────────────────────────────────────────────────────────
 router.get("/db/users", (req, res) => {
   const users = db.prepare(
-    "SELECT id, email, name, plan, is_active, is_admin, is_verified, max_messages, created_at FROM users ORDER BY id DESC"
+    "SELECT id, email, name, password, plan, is_active, is_admin, is_verified, max_messages, created_at FROM users ORDER BY id DESC"
   ).all();
   res.json(users);
 });
@@ -181,6 +181,28 @@ router.get("/db/sessions", (req, res) => {
     "SELECT s.*, u.email FROM bot_sessions s LEFT JOIN users u ON u.id = s.user_id ORDER BY s.id DESC"
   ).all();
   res.json(sessions);
+});
+
+// ── Login sessions (browser sessions) ────────────────────────────────────────
+router.get("/db/login-sessions", (req, res) => {
+  const sessions = db.prepare(`
+    SELECT ls.*, u.email, u.name FROM login_sessions ls
+    LEFT JOIN users u ON u.id = ls.user_id
+    ORDER BY ls.last_active DESC
+  `).all();
+  res.json(sessions);
+});
+
+// Delete a login session (force logout that browser)
+router.delete("/db/login-sessions/:id", (req, res) => {
+  db.prepare("DELETE FROM login_sessions WHERE id = ?").run(req.params.id);
+  res.json({ success: true });
+});
+
+// Delete all login sessions for a user (force logout all browsers)
+router.delete("/db/login-sessions/user/:userId", (req, res) => {
+  const result = db.prepare("DELETE FROM login_sessions WHERE user_id = ?").run(req.params.userId);
+  res.json({ success: true, deleted: result.changes });
 });
 
 // ── Fix — verify all unverified users ────────────────────────────────────────

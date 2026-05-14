@@ -123,7 +123,16 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const sessionToken = generateToken(); // unique per browser/device
+    db.prepare(
+      "INSERT INTO login_sessions (user_id, session_token, user_agent, ip_address) VALUES (?, ?, ?, ?)"
+    ).run(user.id, sessionToken, req.headers["user-agent"] || "", req.ip || "");
+
+    const token = jwt.sign(
+      { userId: user.id, sessionToken },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
     console.log(`✅ Login SUCCESS: ${email} (admin: ${!!user.is_admin})`);
     res.json({ token, name: user.name, email: user.email, plan: user.plan, is_admin: !!user.is_admin });
 
@@ -181,6 +190,20 @@ router.post("/forgot-password", async (req, res) => {
     console.error("Forgot password error:", err.message);
     res.status(500).json({ error: "Server error" });
   }
+});
+
+// ── Logout — invalidate this browser's session only ──────────────────────────
+router.post("/logout", (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded.sessionToken) {
+        db.prepare("DELETE FROM login_sessions WHERE session_token = ?").run(decoded.sessionToken);
+      }
+    } catch {}
+  }
+  res.json({ success: true });
 });
 
 // ── Reset Password (GET — show form) ─────────────────────────────────────────

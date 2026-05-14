@@ -7,29 +7,45 @@ const TABS  = ["📊 Overview", "👥 Tenants", "📋 Semua Log", "🗄️ Datab
 
 // ── DB Viewer Component ───────────────────────────────────────────────────────
 function DbViewer() {
-  const [users, setUsers]         = useState([]);
-  const [sessions, setSessions]   = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [msg, setMsg]             = useState({ text:"", type:"success" });
-  const [showAdd, setShowAdd]     = useState(false);
-  const [addForm, setAddForm]     = useState({ name:"", email:"", password:"", plan:"basic", is_admin:false });
-  const [adding, setAdding]       = useState(false);
+  const [users, setUsers]               = useState([]);
+  const [sessions, setSessions]         = useState([]);
+  const [loginSessions, setLoginSessions] = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [dbTab, setDbTab]               = useState(0); // 0=users, 1=bot sessions, 2=login sessions
+  const [msg, setMsg]                   = useState({ text:"", type:"success" });
+  const [showAdd, setShowAdd]           = useState(false);
+  const [addForm, setAddForm]           = useState({ name:"", email:"", password:"", plan:"basic", is_admin:false });
+  const [adding, setAdding]             = useState(false);
+  const [showPw, setShowPw]             = useState({});
 
   function toast(text, type="success") {
     setMsg({ text, type });
-    setTimeout(() => setMsg({ text:"", type:"success" }), 3000);
+    setTimeout(() => setMsg({ text:"", type:"success" }), 3500);
   }
 
   async function load() {
     setLoading(true);
     try {
-      const [u, s] = await Promise.all([
+      const [u, s, ls] = await Promise.all([
         api("GET", "/admin/db/users"),
         api("GET", "/admin/db/sessions"),
+        api("GET", "/admin/db/login-sessions"),
       ]);
-      setUsers(u); setSessions(s);
+      setUsers(u); setSessions(s); setLoginSessions(ls);
     } catch(e) { toast("Error: " + e.message, "error"); }
     setLoading(false);
+  }
+  async function addUser(e) {
+    e.preventDefault();
+    setAdding(true);
+    try {
+      await api("POST", "/admin/db/add-user", addForm);
+      toast(`✅ User ${addForm.email} berjaya ditambah!`);
+      setShowAdd(false);
+      setAddForm({ name:"", email:"", password:"", plan:"basic", is_admin:false });
+      load();
+    } catch(err) { toast(err.message, "error"); }
+    setAdding(false);
   }
 
   async function verifyAll() {
@@ -46,7 +62,7 @@ function DbViewer() {
   }
 
   async function deleteUser(id, email) {
-    if (!confirm(`Padam akaun ${email}?\n\nSemua data termasuk bot config dan log mesej akan dipadam. Tindakan ini TIDAK boleh dibatalkan!`)) return;
+    if (!confirm(`Padam akaun ${email}?\n\nSemua data akan dipadam. TIDAK boleh dibatalkan!`)) return;
     try {
       await api("DELETE", `/admin/tenants/${id}`);
       toast(`🗑 ${email} dah dipadam`);
@@ -54,17 +70,17 @@ function DbViewer() {
     } catch(e) { toast("Error: " + e.message, "error"); }
   }
 
-  async function addUser(e) {
-    e.preventDefault();
-    setAdding(true);
-    try {
-      await api("POST", "/admin/db/add-user", addForm);
-      toast(`✅ User ${addForm.email} berjaya ditambah!`);
-      setShowAdd(false);
-      setAddForm({ name:"", email:"", password:"", plan:"basic", is_admin:false });
-      load();
-    } catch(err) { toast(err.message, "error"); }
-    setAdding(false);
+  async function deleteLoginSession(id) {
+    await api("DELETE", `/admin/db/login-sessions/${id}`);
+    toast("✅ Session dipadam — browser tu kena login semula");
+    load();
+  }
+
+  async function deleteAllLoginSessions(userId, email) {
+    if (!confirm(`Force logout semua browser untuk ${email}?`)) return;
+    await api("DELETE", `/admin/db/login-sessions/user/${userId}`);
+    toast(`✅ Semua session ${email} dah dipadam`);
+    load();
   }
 
   useEffect(() => { load(); }, []);
@@ -75,61 +91,37 @@ function DbViewer() {
     </div>
   );
 
+  const DB_TABS = ["👥 Users", "🤖 Bot Sessions", "🔐 Login Sessions"];
+
   return (
     <div style={{ display:"flex",flexDirection:"column",gap:16 }}>
       {msg.text && <div className={`alert alert-${msg.type==="error"?"error":"success"}`}>{msg.text}</div>}
 
-      {/* ── Add User Modal ── */}
       {showAdd && (
         <div className="modal-overlay" onClick={()=>setShowAdd(false)}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
             <div className="modal-handle" />
             <div className="modal-header">
-              <div>
-                <div style={{ fontWeight:700,fontSize:17 }}>➕ Tambah User Baru</div>
-                <div style={{ fontSize:12,color:"#94a3b8",marginTop:3 }}>Buat akaun terus dari admin panel</div>
-              </div>
+              <div><div style={{ fontWeight:700,fontSize:17 }}>➕ Tambah User Baru</div></div>
               <button className="modal-close" onClick={()=>setShowAdd(false)}>✕</button>
             </div>
             <div className="modal-body">
               <form onSubmit={addUser} style={{ display:"flex",flexDirection:"column",gap:14 }}>
                 <div className="grid-2">
-                  <div>
-                    <label>Nama Penuh</label>
-                    <input className="input" placeholder="Nama user" value={addForm.name} onChange={e=>setAddForm({...addForm,name:e.target.value})} required />
-                  </div>
-                  <div>
-                    <label>Email</label>
-                    <input className="input" type="email" placeholder="email@example.com" value={addForm.email} onChange={e=>setAddForm({...addForm,email:e.target.value})} required />
-                  </div>
+                  <div><label>Nama</label><input className="input" placeholder="Nama" value={addForm.name} onChange={e=>setAddForm({...addForm,name:e.target.value})} required /></div>
+                  <div><label>Email</label><input className="input" type="email" placeholder="email@example.com" value={addForm.email} onChange={e=>setAddForm({...addForm,email:e.target.value})} required /></div>
                 </div>
                 <div className="grid-2">
-                  <div>
-                    <label>Kata Laluan</label>
-                    <input className="input" type="password" placeholder="Min 6 aksara" value={addForm.password} onChange={e=>setAddForm({...addForm,password:e.target.value})} minLength={6} required />
-                  </div>
-                  <div>
-                    <label>Plan</label>
-                    <select className="input" value={addForm.plan} onChange={e=>setAddForm({...addForm,plan:e.target.value})}>
-                      {PLANS.map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
-                    </select>
-                  </div>
+                  <div><label>Kata Laluan</label><input className="input" type="password" placeholder="Min 6 aksara" value={addForm.password} onChange={e=>setAddForm({...addForm,password:e.target.value})} minLength={6} required /></div>
+                  <div><label>Plan</label><select className="input" value={addForm.plan} onChange={e=>setAddForm({...addForm,plan:e.target.value})}>{PLANS.map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}</select></div>
                 </div>
                 <div style={{ display:"flex",alignItems:"center",gap:10,background:"#f8fafc",borderRadius:10,padding:"12px 14px",border:"1px solid #e2e8f0" }}>
-                  <label className="toggle" style={{ margin:0 }}>
-                    <input type="checkbox" checked={addForm.is_admin} onChange={e=>setAddForm({...addForm,is_admin:e.target.checked})} />
-                    <span className="toggle-slider" />
-                  </label>
-                  <div>
-                    <div style={{ fontWeight:600,fontSize:13 }}>Admin Access</div>
-                    <div style={{ fontSize:11,color:"#94a3b8" }}>Boleh akses admin panel</div>
-                  </div>
+                  <label className="toggle" style={{ margin:0 }}><input type="checkbox" checked={addForm.is_admin} onChange={e=>setAddForm({...addForm,is_admin:e.target.checked})} /><span className="toggle-slider" /></label>
+                  <div><div style={{ fontWeight:600,fontSize:13 }}>Admin Access</div><div style={{ fontSize:11,color:"#94a3b8" }}>Boleh akses admin panel</div></div>
                 </div>
-                <div style={{ display:"flex",gap:10,paddingTop:4 }}>
+                <div style={{ display:"flex",gap:10 }}>
                   <button type="button" className="btn btn-secondary" style={{ flex:1 }} onClick={()=>setShowAdd(false)}>Batal</button>
-                  <button type="submit" className="btn btn-primary" style={{ flex:2 }} disabled={adding}>
-                    {adding ? <><span className="spinner" style={{ width:14,height:14 }}/> Menambah...</> : "➕ Tambah User"}
-                  </button>
+                  <button type="submit" className="btn btn-primary" style={{ flex:2 }} disabled={adding}>{adding?<><span className="spinner" style={{ width:14,height:14 }}/> Menambah...</>:"➕ Tambah User"}</button>
                 </div>
               </form>
             </div>
@@ -137,107 +129,101 @@ function DbViewer() {
         </div>
       )}
 
-      {/* ── Users Table ── */}
-      <div className="card" style={{ padding:0,overflow:"hidden" }}>
-        <div style={{ padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid #e2e8f0",flexWrap:"wrap",gap:10 }}>
-          <div>
-            <div style={{ fontWeight:700,fontSize:16 }}>👥 Users ({users.length})</div>
-            <div style={{ fontSize:12,color:"#94a3b8",marginTop:2 }}>Semua akaun dalam database</div>
-          </div>
-          <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
-            <button className="btn btn-secondary btn-sm" onClick={load}>🔄 Refresh</button>
-            <button className="btn btn-secondary btn-sm" onClick={verifyAll}>✅ Verify All</button>
-            <button className="btn btn-primary btn-sm" onClick={()=>setShowAdd(true)}>➕ Tambah User</button>
-          </div>
-        </div>
-        <div style={{ overflowX:"auto" }}>
-          <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
-            <thead>
-              <tr style={{ background:"#f8fafc" }}>
-                {["ID","Email","Name","Plan","Active","Role","Verified","Dibuat","Tindakan"].map(h=>(
-                  <th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {users.length===0
-                ? <tr><td colSpan={9} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Tiada user</td></tr>
-                : users.map(u=>(
-                <tr key={u.id} style={{ borderBottom:"1px solid #f1f5f9" }}>
-                  <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{u.id}</td>
-                  <td style={{ padding:"10px 14px",fontWeight:500,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{u.email}</td>
-                  <td style={{ padding:"10px 14px",whiteSpace:"nowrap" }}>{u.name}</td>
-                  <td style={{ padding:"10px 14px" }}><span className="badge badge-gray">{u.plan}</span></td>
-                  <td style={{ padding:"10px 14px",textAlign:"center" }}>{u.is_active ? "✅":"❌"}</td>
-                  <td style={{ padding:"10px 14px" }}>
-                    {u.is_admin ? <span className="badge badge-purple">🛡️ Admin</span> : <span className="badge badge-gray">User</span>}
-                  </td>
-                  <td style={{ padding:"10px 14px" }}>
-                    {u.is_verified
-                      ? <span className="badge badge-green">✅</span>
-                      : <span className="badge badge-red">❌</span>
-                    }
-                  </td>
-                  <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(u.created_at).toLocaleDateString("ms-MY")}</td>
-                  <td style={{ padding:"10px 14px" }}>
-                    <div style={{ display:"flex",gap:5 }}>
-                      {!u.is_verified && (
-                        <button className="btn btn-primary btn-sm" style={{ fontSize:10,padding:"4px 8px" }} onClick={()=>verifyUser(u.id,u.email)}>
-                          Verify
-                        </button>
-                      )}
-                      {!u.is_admin && (
-                        <button className="btn btn-danger btn-sm" style={{ fontSize:10,padding:"4px 8px" }} onClick={()=>deleteUser(u.id,u.email)}>
-                          🗑
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div style={{ display:"flex",gap:6,flexWrap:"wrap",alignItems:"center" }}>
+        {DB_TABS.map((t,i)=>(
+          <button key={i} onClick={()=>setDbTab(i)} style={{ padding:"7px 14px",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,background:dbTab===i?"#0f172a":"#f1f5f9",color:dbTab===i?"#fff":"#475569" }}>
+            {t} <span style={{ marginLeft:4,background:dbTab===i?"rgba(255,255,255,.2)":"#e2e8f0",borderRadius:99,padding:"1px 6px",fontSize:11 }}>{i===0?users.length:i===1?sessions.length:loginSessions.length}</span>
+          </button>
+        ))}
+        <div style={{ marginLeft:"auto",display:"flex",gap:6 }}>
+          <button className="btn btn-secondary btn-sm" onClick={load}>🔄</button>
+          {dbTab===0 && <><button className="btn btn-secondary btn-sm" onClick={verifyAll}>✅ Verify All</button><button className="btn btn-primary btn-sm" onClick={()=>setShowAdd(true)}>➕ Tambah</button></>}
         </div>
       </div>
 
-      {/* ── Sessions Table ── */}
-      <div className="card" style={{ padding:0,overflow:"hidden" }}>
-        <div style={{ padding:"16px 20px",borderBottom:"1px solid #e2e8f0" }}>
-          <div style={{ fontWeight:700,fontSize:16 }}>🤖 Bot Sessions ({sessions.length})</div>
-          <div style={{ fontSize:12,color:"#94a3b8",marginTop:2 }}>Status WhatsApp setiap user</div>
-        </div>
-        <div style={{ overflowX:"auto" }}>
-          <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
-            <thead>
-              <tr style={{ background:"#f8fafc" }}>
-                {["User ID","Email","Status","Phone","Updated"].map(h=>(
-                  <th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>
+      {dbTab===0 && (
+        <div className="card" style={{ padding:0,overflow:"hidden" }}>
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+              <thead><tr style={{ background:"#f8fafc" }}>{["ID","Email","Name","Password","Plan","Active","Role","Verified","Dibuat","Tindakan"].map(h=><th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {users.length===0?<tr><td colSpan={10} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Tiada user</td></tr>:users.map(u=>(
+                  <tr key={u.id} style={{ borderBottom:"1px solid #f1f5f9" }}>
+                    <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{u.id}</td>
+                    <td style={{ padding:"10px 14px",fontWeight:500,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{u.email}</td>
+                    <td style={{ padding:"10px 14px",whiteSpace:"nowrap" }}>{u.name}</td>
+                    <td style={{ padding:"10px 14px" }}>
+                      <div style={{ display:"flex",alignItems:"center",gap:5 }}>
+                        <code style={{ fontSize:10,color:"#64748b",maxWidth:showPw[u.id]?130:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{showPw[u.id]?u.password:u.password?.slice(0,10)+"..."}</code>
+                        <button onClick={()=>setShowPw(p=>({...p,[u.id]:!p[u.id]}))} style={{ background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#94a3b8" }}>{showPw[u.id]?"🙈":"👁"}</button>
+                      </div>
+                    </td>
+                    <td style={{ padding:"10px 14px" }}><span className="badge badge-gray">{u.plan}</span></td>
+                    <td style={{ padding:"10px 14px",textAlign:"center" }}>{u.is_active?"✅":"❌"}</td>
+                    <td style={{ padding:"10px 14px" }}>{u.is_admin?<span className="badge badge-purple">🛡️ Admin</span>:<span className="badge badge-gray">User</span>}</td>
+                    <td style={{ padding:"10px 14px" }}>{u.is_verified?<span className="badge badge-green">✅</span>:<span className="badge badge-red">❌</span>}</td>
+                    <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(u.created_at).toLocaleDateString("ms-MY")}</td>
+                    <td style={{ padding:"10px 14px" }}><div style={{ display:"flex",gap:4 }}>{!u.is_verified&&<button className="btn btn-primary btn-sm" style={{ fontSize:10,padding:"4px 8px" }} onClick={()=>verifyUser(u.id,u.email)}>Verify</button>}{!u.is_admin&&<button className="btn btn-danger btn-sm" style={{ fontSize:10,padding:"4px 8px" }} onClick={()=>deleteUser(u.id,u.email)}>🗑</button>}</div></td>
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.length===0
-                ? <tr><td colSpan={5} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Tiada session</td></tr>
-                : sessions.map(s=>(
-                <tr key={s.id} style={{ borderBottom:"1px solid #f1f5f9" }}>
-                  <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{s.user_id}</td>
-                  <td style={{ padding:"10px 14px" }}>{s.email||"—"}</td>
-                  <td style={{ padding:"10px 14px" }}>
-                    <span className={`badge ${s.status==="connected"?"badge-green":s.status==="qr_pending"?"badge-yellow":"badge-gray"}`}>{s.status}</span>
-                  </td>
-                  <td style={{ padding:"10px 14px" }}>{s.phone_number?`+${s.phone_number}`:"—"}</td>
-                  <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(s.updated_at).toLocaleString("ms-MY")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {dbTab===1 && (
+        <div className="card" style={{ padding:0,overflow:"hidden" }}>
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+              <thead><tr style={{ background:"#f8fafc" }}>{["User ID","Email","Status","Phone","Updated"].map(h=><th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {sessions.length===0?<tr><td colSpan={5} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Tiada session</td></tr>:sessions.map(s=>(
+                  <tr key={s.id} style={{ borderBottom:"1px solid #f1f5f9" }}>
+                    <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{s.user_id}</td>
+                    <td style={{ padding:"10px 14px" }}>{s.email||"—"}</td>
+                    <td style={{ padding:"10px 14px" }}><span className={`badge ${s.status==="connected"?"badge-green":s.status==="qr_pending"?"badge-yellow":"badge-gray"}`}>{s.status}</span></td>
+                    <td style={{ padding:"10px 14px" }}>{s.phone_number?`+${s.phone_number}`:"—"}</td>
+                    <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(s.updated_at).toLocaleString("ms-MY")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {dbTab===2 && (
+        <div className="card" style={{ padding:0,overflow:"hidden" }}>
+          <div style={{ padding:"12px 18px",borderBottom:"1px solid #e2e8f0",background:"#eff6ff" }}>
+            <div style={{ fontSize:13,color:"#1d4ed8",fontWeight:600 }}>🔐 Active browser sessions — padam untuk force logout browser tertentu</div>
+          </div>
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+              <thead><tr style={{ background:"#f8fafc" }}>{["ID","User","Email","Browser","IP","Login","Last Active","Tindakan"].map(h=><th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {loginSessions.length===0?<tr><td colSpan={8} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Tiada active session</td></tr>:loginSessions.map(s=>(
+                  <tr key={s.id} style={{ borderBottom:"1px solid #f1f5f9" }}>
+                    <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{s.id}</td>
+                    <td style={{ padding:"10px 14px",fontWeight:600 }}>{s.name||"—"}</td>
+                    <td style={{ padding:"10px 14px",maxWidth:130,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{s.email||"—"}</td>
+                    <td style={{ padding:"10px 14px",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"#64748b" }}>{s.user_agent?.split(" ").slice(-2).join(" ")||"—"}</td>
+                    <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{s.ip_address||"—"}</td>
+                    <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(s.created_at).toLocaleString("ms-MY")}</td>
+                    <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(s.last_active).toLocaleString("ms-MY")}</td>
+                    <td style={{ padding:"10px 14px" }}><div style={{ display:"flex",gap:4 }}><button className="btn btn-danger btn-sm" style={{ fontSize:10,padding:"4px 8px" }} onClick={()=>deleteLoginSession(s.id)}>Logout</button><button className="btn btn-secondary btn-sm" style={{ fontSize:10,padding:"4px 8px" }} onClick={()=>deleteAllLoginSessions(s.user_id,s.email)}>All</button></div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Small reusable components ────────────────────────────────────────────────
+
 function StatCard({ icon, label, value, sub, color = "#25d366" }) {
   return (
     <div className="card" style={{ flex: 1, minWidth: 150 }}>
@@ -480,7 +466,7 @@ export default function Admin() {
     return matchSearch && matchPlan && matchStatus;
   });
 
-  function logout() { localStorage.clear(); navigate("/login"); }
+  async function logout() { try{await api("POST","/auth/logout");}catch{} localStorage.clear(); navigate("/login"); }
 
   const ADMIN_NAV = [
     { icon:"📊", label:"Overview",   id:0 },
