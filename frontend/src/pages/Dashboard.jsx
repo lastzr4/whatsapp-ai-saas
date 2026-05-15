@@ -135,20 +135,17 @@ export default function Dashboard() {
       <main className="main">
         {/* Topbar */}
         <div className="topbar">
-          <div>
-            <div style={{ fontWeight:700,fontSize:15 }}>{NAV[tab]?.icon} {tabLabel}</div>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{NAV[tab]?.icon} {tabLabel}</div>
             <div style={{ fontSize:11,color:"#94a3b8",marginTop:1 }}>WhatsApp AI Bot</div>
           </div>
-          <div style={{ display:"flex",gap:8,alignItems:"center" }}>
-            <span className={`badge ${statusBadge}`} style={{ fontSize:11 }}>
+          <div style={{ display:"flex",gap:6,alignItems:"center",flexShrink:0 }}>
+            <span className={`badge ${statusBadge}`} style={{ fontSize:10,flexShrink:0 }}>
               <StatusDot status={status.status} />{statusLabel}
             </span>
-            {/* Mobile bot controls in topbar */}
-            <div style={{ display:"flex",gap:4 }} className="mobile-bot-ctrl">
-              {!status.is_running && <button className="btn btn-primary btn-sm" style={{ fontSize:11,padding:"5px 10px" }} onClick={startBot}>▶</button>}
-              {status.is_running  && <button className="btn btn-secondary btn-sm" style={{ fontSize:11,padding:"5px 10px" }} onClick={restartBot}>🔄</button>}
-              {status.is_running  && <button className="btn btn-danger btn-sm" style={{ fontSize:11,padding:"5px 10px" }} onClick={stopBot}>⏹</button>}
-            </div>
+            {!status.is_running && <button className="btn btn-primary btn-sm" style={{ fontSize:11,padding:"5px 10px",flexShrink:0 }} onClick={startBot}>▶</button>}
+            {status.is_running  && <button className="btn btn-secondary btn-sm" style={{ fontSize:11,padding:"5px 10px",flexShrink:0 }} onClick={restartBot}>🔄</button>}
+            {status.is_running  && <button className="btn btn-danger btn-sm" style={{ fontSize:11,padding:"5px 10px",flexShrink:0 }} onClick={stopBot}>⏹</button>}
           </div>
         </div>
 
@@ -347,17 +344,14 @@ export default function Dashboard() {
           {/* ── Tab 4: Logs ── */}
           {tab===4 && (
             <div style={{ maxWidth:720,margin:"0 auto" }}>
-              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8 }}>
-                <div>
-                  <div className="section-title">📋 Log Mesej</div>
-                  <div className="section-sub" style={{ marginBottom:0 }}>
-                    {logs.length} perbualan{selectedLogs.size>0 && <span style={{ color:"#3b82f6",fontWeight:600 }}> · {selectedLogs.size} dipilih</span>}
+              <div style={{ marginBottom:14 }}>
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap" }}>
+                  <div className="section-title">📋 Log Mesej <span style={{ fontSize:13,fontWeight:400,color:"#94a3b8" }}>({logs.length}){selectedLogs.size>0&&<span style={{ color:"#3b82f6",fontWeight:600 }}> · {selectedLogs.size} dipilih</span>}</span></div>
+                  <div className="btn-row">
+                    {selectedLogs.size>0 && <button className="btn btn-danger btn-sm" onClick={deleteSelectedLogs}>🗑 ({selectedLogs.size})</button>}
+                    {logs.length>0 && <button className="btn btn-secondary btn-sm" style={{ color:"#dc2626" }} onClick={clearAllLogs}>🗑 Clear</button>}
+                    <button className="btn btn-secondary btn-sm" onClick={fetchLogs}>🔄</button>
                   </div>
-                </div>
-                <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
-                  {selectedLogs.size>0 && <button className="btn btn-danger btn-sm" onClick={deleteSelectedLogs}>🗑 Padam ({selectedLogs.size})</button>}
-                  {logs.length>0 && <button className="btn btn-secondary btn-sm" style={{ color:"#dc2626" }} onClick={clearAllLogs}>🗑 Clear All</button>}
-                  <button className="btn btn-secondary btn-sm" onClick={fetchLogs}>🔄</button>
                 </div>
               </div>
 

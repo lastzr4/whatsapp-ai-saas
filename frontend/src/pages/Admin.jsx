@@ -142,9 +142,8 @@ function DbViewer() {
       </div>
 
       {dbTab===0 && (
-        <div className="card" style={{ padding:0,overflow:"hidden" }}>
-          <div style={{ overflowX:"auto" }}>
-            <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+        <div className="db-table-wrap">
+          <table style={{ width:"100%",borderCollapse:"collapse" }}>
               <thead><tr style={{ background:"#f8fafc" }}>{["ID","Email","Name","Password","Plan","Active","Role","Verified","Dibuat","Tindakan"].map(h=><th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>)}</tr></thead>
               <tbody>
                 {users.length===0?<tr><td colSpan={10} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Tiada user</td></tr>:users.map(u=>(
@@ -168,46 +167,43 @@ function DbViewer() {
                 ))}
               </tbody>
             </table>
-          </div>
         </div>
       )}
 
       {dbTab===1 && (
-        <div className="card" style={{ padding:0,overflow:"hidden" }}>
-          <div style={{ overflowX:"auto" }}>
-            <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
-              <thead><tr style={{ background:"#f8fafc" }}>{["User ID","Email","Status","Phone","Updated"].map(h=><th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>)}</tr></thead>
-              <tbody>
-                {sessions.length===0?<tr><td colSpan={5} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Tiada session</td></tr>:sessions.map(s=>(
-                  <tr key={s.id} style={{ borderBottom:"1px solid #f1f5f9" }}>
-                    <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{s.user_id}</td>
-                    <td style={{ padding:"10px 14px" }}>{s.email||"—"}</td>
-                    <td style={{ padding:"10px 14px" }}><span className={`badge ${s.status==="connected"?"badge-green":s.status==="qr_pending"?"badge-yellow":"badge-gray"}`}>{s.status}</span></td>
-                    <td style={{ padding:"10px 14px" }}>{s.phone_number?`+${s.phone_number}`:"—"}</td>
-                    <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(s.updated_at).toLocaleString("ms-MY")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="db-table-wrap">
+          <table style={{ width:"100%",borderCollapse:"collapse" }}>
+            <thead><tr style={{ background:"#f8fafc" }}>{["User ID","Email","Status","Phone","Updated"].map(h=><th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>)}</tr></thead>
+            <tbody>
+              {sessions.length===0?<tr><td colSpan={5} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Tiada session</td></tr>:sessions.map(s=>(
+                <tr key={s.id} style={{ borderBottom:"1px solid #f1f5f9" }}>
+                  <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{s.user_id}</td>
+                  <td style={{ padding:"10px 14px" }}>{s.email||"—"}</td>
+                  <td style={{ padding:"10px 14px" }}><span className={`badge ${s.status==="connected"?"badge-green":s.status==="qr_pending"?"badge-yellow":"badge-gray"}`}>{s.status}</span></td>
+                  <td style={{ padding:"10px 14px" }}>{s.phone_number?`+${s.phone_number}`:"—"}</td>
+                  <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(s.updated_at).toLocaleString("ms-MY")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
       {dbTab===2 && (
-        <div className="card" style={{ padding:0,overflow:"hidden" }}>
-          <div style={{ padding:"12px 18px",borderBottom:"1px solid #e2e8f0",background:"#eff6ff" }}>
-            <div style={{ fontSize:13,color:"#1d4ed8",fontWeight:600 }}>🔐 Active browser sessions — padam untuk force logout browser tertentu</div>
+        <div>
+          <div style={{ padding:"12px 14px",background:"#eff6ff",borderRadius:"10px 10px 0 0",border:"1px solid #bfdbfe",marginBottom:0 }}>
+            <div style={{ fontSize:12,color:"#1d4ed8",fontWeight:600 }}>🔐 Active browser sessions — padam untuk force logout</div>
           </div>
-          <div style={{ overflowX:"auto" }}>
-            <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+          <div className="db-table-wrap" style={{ borderRadius:"0 0 10px 10px" }}>
+            <table style={{ width:"100%",borderCollapse:"collapse" }}>
               <thead><tr style={{ background:"#f8fafc" }}>{["ID","User","Email","Browser","IP","Login","Last Active","Tindakan"].map(h=><th key={h} style={{ padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap" }}>{h}</th>)}</tr></thead>
               <tbody>
                 {loginSessions.length===0?<tr><td colSpan={8} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Tiada active session</td></tr>:loginSessions.map(s=>(
                   <tr key={s.id} style={{ borderBottom:"1px solid #f1f5f9" }}>
                     <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{s.id}</td>
                     <td style={{ padding:"10px 14px",fontWeight:600 }}>{s.name||"—"}</td>
-                    <td style={{ padding:"10px 14px",maxWidth:130,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{s.email||"—"}</td>
-                    <td style={{ padding:"10px 14px",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"#64748b" }}>{s.user_agent?.split(" ").slice(-2).join(" ")||"—"}</td>
+                    <td style={{ padding:"10px 14px",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{s.email||"—"}</td>
+                    <td style={{ padding:"10px 14px",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"#64748b" }}>{s.user_agent?.split(" ").slice(-2).join(" ")||"—"}</td>
                     <td style={{ padding:"10px 14px",color:"#94a3b8" }}>{s.ip_address||"—"}</td>
                     <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(s.created_at).toLocaleString("ms-MY")}</td>
                     <td style={{ padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap" }}>{new Date(s.last_active).toLocaleString("ms-MY")}</td>
@@ -310,32 +306,33 @@ function TenantModal({ tenant, onClose, onSave }) {
   const MTABS = ["✏️ Edit", "🔐 Keselamatan", "📋 Log Mesej"];
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div className="card" style={{ width: "100%", maxWidth: 600, maxHeight: "90vh", overflow: "auto", position: "relative" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-          <div>
-            <h2 style={{ fontWeight: 700, fontSize: 18 }}>{tenant.name}</h2>
-            <p style={{ fontSize: 13, color: "#6b7280" }}>{tenant.email}</p>
+    <div className="modal-overlay">
+      <div className="modal">
+        <div className="modal-handle" />
+        <div className="modal-header">
+          <div style={{ minWidth:0 }}>
+            <h2 style={{ fontWeight:700,fontSize:17,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{tenant.name}</h2>
+            <p style={{ fontSize:12,color:"#6b7280",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{tenant.email}</p>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#6b7280" }}>✕</button>
+          <button className="modal-close" onClick={onClose}>✕</button>
         </div>
+        <div className="modal-body">
+          {msg && <div className={`alert ${msg.startsWith("✅")?"alert-success":"alert-error"}`} style={{ marginBottom:12 }}>{msg}</div>}
 
-        {msg && <div className={`alert ${msg.startsWith("✅") ? "alert-success" : "alert-error"}`}>{msg}</div>}
-
-        <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
-          {MTABS.map((t, i) => (
-            <button key={i} onClick={() => setModalTab(i)}
-              style={{ padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
-                background: modalTab === i ? "#25d366" : "#f3f4f6", color: modalTab === i ? "#fff" : "#374151" }}>
-              {t}
-            </button>
-          ))}
-        </div>
+          <div className="sub-tabs" style={{ marginBottom:14 }}>
+            {MTABS.map((t,i)=>(
+              <button key={i} onClick={()=>setModalTab(i)}
+                style={{ padding:"6px 12px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
+                  background:modalTab===i?"#25d366":"#f3f4f6",color:modalTab===i?"#fff":"#374151",flexShrink:0 }}>
+                {t}
+              </button>
+            ))}
+          </div>
 
         {/* Edit Tab */}
         {modalTab === 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="grid-2">
               <div><label>Nama</label><input className="input" value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
               <div><label>Email</label><input className="input" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
             </div>
@@ -396,18 +393,19 @@ function TenantModal({ tenant, onClose, onSave }) {
             {logs.length === 0
               ? <p style={{ color: "#6b7280", textAlign: "center", padding: 24 }}>Tiada log lagi.</p>
               : logs.map(l => (
-                <div key={l.id} style={{ background: "#f9fafb", borderRadius: 8, padding: 12, fontSize: 13 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <div key={l.id} style={{ background: "#f9fafb", borderRadius: 8, padding: 12, fontSize: 13, marginBottom:8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, flexWrap:"wrap", gap:4 }}>
                     <span style={{ fontWeight: 600 }}>📱 +{l.sender}</span>
                     <span style={{ color: "#9ca3af", fontSize: 11 }}>{new Date(l.created_at).toLocaleString("ms-MY")}</span>
                   </div>
-                  <div style={{ background: "#e0f2fe", borderRadius: 5, padding: "6px 10px", marginBottom: 4 }}>👤 {l.message}</div>
-                  <div style={{ background: "#dcfce7", borderRadius: 5, padding: "6px 10px" }}>🤖 {l.reply}</div>
+                  <div className="bubble-user" style={{ marginBottom:4 }}>👤 {l.message}</div>
+                  <div className="bubble-bot">🤖 {l.reply}</div>
                 </div>
               ))
             }
           </div>
         )}
+        </div>
       </div>
     </div>
   );
@@ -521,13 +519,13 @@ export default function Admin() {
       {/* Main */}
       <main className="main">
         <div className="topbar">
-          <div>
-            <div style={{ fontWeight:700,fontSize:16 }}>{ADMIN_NAV[tab]?.icon} {ADMIN_NAV[tab]?.label}</div>
-            <div style={{ fontSize:12,color:"#94a3b8" }}>Platform administration</div>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{ADMIN_NAV[tab]?.icon} {ADMIN_NAV[tab]?.label}</div>
+            <div style={{ fontSize:11,color:"#94a3b8" }}>Admin Panel</div>
           </div>
-          <div style={{ display:"flex",gap:8 }}>
-            <span className="badge badge-purple">🛡️ Super Admin</span>
-            <button className="btn btn-secondary btn-sm" onClick={fetchAll}>🔄 Refresh</button>
+          <div style={{ display:"flex",gap:6,flexShrink:0 }}>
+            <span className="badge badge-purple" style={{ fontSize:10 }}>🛡️ Admin</span>
+            <button className="btn btn-secondary btn-sm" onClick={fetchAll}>🔄</button>
           </div>
         </div>
 
@@ -536,41 +534,41 @@ export default function Admin() {
         {/* ── TAB: Overview ── */}
         {tab === 0 && stats && (
           <div>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-              <StatCard icon="👥" label="Total Tenant"     value={stats.totalUsers}    sub={`+${stats.newThisWeek} minggu ini`} />
-              <StatCard icon="✅" label="Akaun Aktif"      value={stats.activeUsers}   color="#3b82f6" />
-              <StatCard icon="🤖" label="Bot Bersambung"   value={stats.connectedBots} color="#8b5cf6" />
-              <StatCard icon="💬" label="Jumlah Mesej"     value={stats.totalMessages} sub={`${stats.todayMessages} hari ini`} color="#f59e0b" />
+            <div className="stats-row" style={{ marginBottom:16 }}>
+              <div className="card stat-card"><div style={{ fontSize:24 }}>👥</div><div style={{ fontSize:26,fontWeight:800,color:"#25d366" }}>{stats.totalUsers}</div><div style={{ fontSize:12,fontWeight:600,color:"#64748b",textTransform:"uppercase" }}>Total Tenant</div><div style={{ fontSize:11,color:"#94a3b8" }}>+{stats.newThisWeek} minggu ini</div></div>
+              <div className="card stat-card"><div style={{ fontSize:24 }}>✅</div><div style={{ fontSize:26,fontWeight:800,color:"#3b82f6" }}>{stats.activeUsers}</div><div style={{ fontSize:12,fontWeight:600,color:"#64748b",textTransform:"uppercase" }}>Aktif</div></div>
+              <div className="card stat-card"><div style={{ fontSize:24 }}>🤖</div><div style={{ fontSize:26,fontWeight:800,color:"#8b5cf6" }}>{stats.connectedBots}</div><div style={{ fontSize:12,fontWeight:600,color:"#64748b",textTransform:"uppercase" }}>Bot Online</div></div>
+              <div className="card stat-card"><div style={{ fontSize:24 }}>💬</div><div style={{ fontSize:26,fontWeight:800,color:"#f59e0b" }}>{stats.totalMessages}</div><div style={{ fontSize:12,fontWeight:600,color:"#64748b",textTransform:"uppercase" }}>Mesej</div><div style={{ fontSize:11,color:"#94a3b8" }}>{stats.todayMessages} hari ini</div></div>
             </div>
 
-            {/* Plan breakdown */}
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-              <div className="card" style={{ flex: 1, minWidth: 200 }}>
-                <h3 style={{ fontWeight: 700, marginBottom: 14 }}>📊 Pecahan Plan</h3>
-                {stats.plans.length === 0
-                  ? <p style={{ color: "#6b7280", fontSize: 13 }}>Tiada data</p>
-                  : stats.plans.map(p => (
-                    <div key={p.plan} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f3f4f6", fontSize: 14 }}>
+            {/* Plan breakdown + chart */}
+            <div style={{ display:"flex",gap:12,flexWrap:"wrap",marginBottom:16 }}>
+              <div className="card" style={{ flex:1,minWidth:160 }}>
+                <h3 style={{ fontWeight:700,marginBottom:12,fontSize:14 }}>📊 Pecahan Plan</h3>
+                {stats.plans.length===0
+                  ? <p style={{ color:"#6b7280",fontSize:13 }}>Tiada data</p>
+                  : stats.plans.map(p=>(
+                    <div key={p.plan} style={{ display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid #f3f4f6",fontSize:13 }}>
                       <PlanBadge plan={p.plan} />
-                      <span style={{ fontWeight: 700 }}>{p.count} tenant</span>
+                      <span style={{ fontWeight:700 }}>{p.count}</span>
                     </div>
                   ))
                 }
               </div>
 
-              <div className="card" style={{ flex: 2, minWidth: 300 }}>
-                <h3 style={{ fontWeight: 700, marginBottom: 14 }}>📈 Mesej 7 Hari Lepas</h3>
-                {stats.msgChart.length === 0
-                  ? <p style={{ color: "#6b7280", fontSize: 13 }}>Tiada data lagi.</p>
-                  : <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
-                    {stats.msgChart.map(d => {
-                      const max = Math.max(...stats.msgChart.map(x => x.count), 1);
-                      const h   = Math.max((d.count / max) * 100, 4);
+              <div className="card" style={{ flex:2,minWidth:200 }}>
+                <h3 style={{ fontWeight:700,marginBottom:12,fontSize:14 }}>📈 Mesej 7 Hari Lepas</h3>
+                {stats.msgChart.length===0
+                  ? <p style={{ color:"#6b7280",fontSize:13 }}>Tiada data lagi.</p>
+                  : <div style={{ display:"flex",alignItems:"flex-end",gap:6,height:80 }}>
+                    {stats.msgChart.map(d=>{
+                      const max = Math.max(...stats.msgChart.map(x=>x.count),1);
+                      const h = Math.max((d.count/max)*100,4);
                       return (
-                        <div key={d.day} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                          <span style={{ fontSize: 10, color: "#6b7280" }}>{d.count}</span>
-                          <div style={{ width: "100%", height: `${h}%`, background: "#25d366", borderRadius: 4 }} title={`${d.day}: ${d.count} mesej`} />
-                          <span style={{ fontSize: 9, color: "#9ca3af" }}>{d.day.slice(5)}</span>
+                        <div key={d.day} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3 }}>
+                          <span style={{ fontSize:9,color:"#6b7280" }}>{d.count}</span>
+                          <div style={{ width:"100%",height:`${h}%`,background:"#25d366",borderRadius:3 }} />
+                          <span style={{ fontSize:8,color:"#9ca3af" }}>{d.day.slice(5)}</span>
                         </div>
                       );
                     })}
@@ -579,24 +577,23 @@ export default function Admin() {
               </div>
             </div>
 
-            {/* Quick tenant list */}
+            {/* Offline bots */}
             <div className="card">
-              <h3 style={{ fontWeight: 700, marginBottom: 14 }}>🔴 Bot Offline / Ada Masalah</h3>
-              {tenants.filter(t => t.is_active && t.bot_status !== "connected").length === 0
-                ? <p style={{ color: "#16a34a", fontSize: 13 }}>✅ Semua bot bersambung!</p>
-                : tenants.filter(t => t.is_active && t.bot_status !== "connected").map(t => (
-                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
-                    <div>
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</span>
-                      <span style={{ color: "#6b7280", fontSize: 12, marginLeft: 8 }}>{t.email}</span>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <BotBadge status={t.bot_status} />
-                      <button className="btn btn-secondary" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => setSelected(t)}>Edit</button>
-                    </div>
+              <h3 style={{ fontWeight:700,marginBottom:12,fontSize:14 }}>🔴 Bot Offline / Ada Masalah</h3>
+              {tenants.filter(t=>t.is_active&&t.bot_status!=="connected").length===0
+                ? <p style={{ color:"#16a34a",fontSize:13 }}>✅ Semua bot bersambung!</p>
+                : tenants.filter(t=>t.is_active&&t.bot_status!=="connected").map(t=>(
+                <div key={t.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid #f3f4f6",flexWrap:"wrap",gap:8 }}>
+                  <div style={{ minWidth:0 }}>
+                    <span style={{ fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",display:"block" }}>{t.name}</span>
+                    <span style={{ color:"#6b7280",fontSize:11 }}>{t.email}</span>
                   </div>
-                ))
-              }
+                  <div style={{ display:"flex",gap:6,alignItems:"center",flexShrink:0 }}>
+                    <BotBadge status={t.bot_status} />
+                    <button className="btn btn-secondary btn-sm" style={{ fontSize:11 }} onClick={()=>setSelected(t)}>Edit</button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -605,14 +602,14 @@ export default function Admin() {
         {tab === 1 && (
           <div>
             {/* Filters */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-              <input className="input" style={{ flex: 1, minWidth: 200 }} placeholder="🔍 Cari nama, email, nombor..."
+            <div style={{ display:"flex",gap:8,marginBottom:14,flexWrap:"wrap" }}>
+              <input className="input" style={{ flex:1,minWidth:160 }} placeholder="🔍 Cari nama, email..."
                 value={search} onChange={e => setSearch(e.target.value)} />
-              <select className="input" style={{ width: 140 }} value={filterPlan} onChange={e => setFilterPlan(e.target.value)}>
+              <select className="input" style={{ width:130 }} value={filterPlan} onChange={e => setFilterPlan(e.target.value)}>
                 <option value="all">Semua Plan</option>
                 {PLANS.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
               </select>
-              <select className="input" style={{ width: 140 }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+              <select className="input" style={{ width:130 }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                 <option value="all">Semua Status</option>
                 <option value="connected">Bot Online</option>
                 <option value="offline">Bot Offline</option>
@@ -625,37 +622,34 @@ export default function Admin() {
               Menunjukkan {filtered.length} daripada {tenants.length} tenant
             </div>
 
-            {/* Tenant table */}
-            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
-                      {["Tenant", "Plan", "Bot Status", "Nombor WA", "Mesej", "Daftar", ""].map((h, i) => (
-                        <th key={i} style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.length === 0
-                      ? <tr><td colSpan={7} style={{ padding: 32, textAlign: "center", color: "#6b7280" }}>Tiada tenant dijumpai</td></tr>
-                      : filtered.map(t => (
-                        <tr key={t.id} style={{ borderBottom: "1px solid #f3f4f6" }}
-                          onMouseEnter={e => e.currentTarget.style.background = "#f9fafb"}
-                          onMouseLeave={e => e.currentTarget.style.background = ""}>
-                          <td style={{ padding: "12px 16px" }}>
-                            <div style={{ fontWeight: 600 }}>{t.name}</div>
-                            <div style={{ color: "#6b7280", fontSize: 12 }}>{t.email}</div>
-                            {!t.is_active && <span className="badge badge-red" style={{ fontSize: 10, marginTop: 2 }}>DIGANTUNG</span>}
+            {/* Tenant table — desktop */}
+            <div className="mob-hide" style={{ marginTop:8 }}>
+              <div className="card" style={{ padding:0,overflow:"hidden" }}>
+                <div style={{ overflowX:"auto" }}>
+                  <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
+                    <thead>
+                      <tr style={{ background:"#f9fafb",borderBottom:"1px solid #e5e7eb" }}>
+                        {["Tenant","Plan","Bot Status","Nombor WA","Mesej","Daftar",""].map((h,i)=>(
+                          <th key={i} style={{ padding:"12px 16px",textAlign:"left",fontWeight:600,color:"#374151",whiteSpace:"nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.length===0
+                        ? <tr><td colSpan={7} style={{ padding:32,textAlign:"center",color:"#6b7280" }}>Tiada tenant dijumpai</td></tr>
+                        : filtered.map(t=>(
+                        <tr key={t.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
+                          <td style={{ padding:"12px 16px" }}>
+                            <div style={{ fontWeight:600 }}>{t.name}</div>
+                            <div style={{ color:"#6b7280",fontSize:12 }}>{t.email}</div>
+                            {!t.is_active && <span className="badge badge-red" style={{ fontSize:10,marginTop:2 }}>DIGANTUNG</span>}
                           </td>
-                          <td style={{ padding: "12px 16px" }}><PlanBadge plan={t.plan} /></td>
-                          <td style={{ padding: "12px 16px" }}><BotBadge status={t.bot_status} /></td>
-                          <td style={{ padding: "12px 16px", color: t.phone_number ? "#111" : "#9ca3af" }}>
-                            {t.phone_number ? `+${t.phone_number}` : "—"}
-                          </td>
-                          <td style={{ padding: "12px 16px" }}>
-                            <span style={{ fontWeight: 600 }}>{t.total_messages}</span>
-                            <span style={{ color: "#6b7280", fontSize: 11, marginLeft: 4 }}>({t.today_messages} hari ini)</span>
+                          <td style={{ padding:"12px 16px" }}><PlanBadge plan={t.plan} /></td>
+                          <td style={{ padding:"12px 16px" }}><BotBadge status={t.bot_status} /></td>
+                          <td style={{ padding:"12px 16px",color:t.phone_number?"#111":"#9ca3af" }}>{t.phone_number?`+${t.phone_number}`:"—"}</td>
+                          <td style={{ padding:"12px 16px" }}>
+                            <span style={{ fontWeight:600 }}>{t.total_messages}</span>
+                            <span style={{ color:"#6b7280",fontSize:11,marginLeft:4 }}>({t.today_messages} hari ini)</span>
                           </td>
                           <td style={{ padding: "12px 16px", color: "#6b7280", whiteSpace: "nowrap" }}>
                             {new Date(t.created_at).toLocaleDateString("ms-MY")}
@@ -673,33 +667,57 @@ export default function Admin() {
                 </table>
               </div>
             </div>
+            </div>
+
+            {/* Tenant list — mobile cards */}
+            <div style={{ display:"none" }} className="mob-tenant-list">
+              {filtered.length===0
+                ? <div className="card" style={{ textAlign:"center",color:"#6b7280",padding:32 }}>Tiada tenant dijumpai</div>
+                : filtered.map(t=>(
+                <div key={t.id} className="card" style={{ marginBottom:10,cursor:"pointer" }} onClick={()=>setSelected(t)}>
+                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8 }}>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.name}</div>
+                      <div style={{ color:"#6b7280",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.email}</div>
+                    </div>
+                    <BotBadge status={t.bot_status} />
+                  </div>
+                  <div style={{ display:"flex",gap:6,flexWrap:"wrap",alignItems:"center" }}>
+                    <PlanBadge plan={t.plan} />
+                    {t.phone_number && <span style={{ fontSize:12,color:"#64748b" }}>📱 +{t.phone_number}</span>}
+                    {!t.is_active && <span className="badge badge-red">DIGANTUNG</span>}
+                    <span style={{ marginLeft:"auto",fontSize:12,color:"#94a3b8" }}>{t.total_messages} mesej</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* ── TAB: All Logs ── */}
         {tab === 2 && (
-          <div className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ fontWeight: 700 }}>📋 Semua Log Mesej (100 terbaru)</h2>
-              <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={fetchLogs}>🔄 Refresh</button>
+          <div className="card" style={{ padding:0,overflow:"hidden" }}>
+            <div style={{ padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid #e2e8f0",flexWrap:"wrap",gap:8 }}>
+              <h2 style={{ fontWeight:700,fontSize:16 }}>📋 Semua Log (100 terbaru)</h2>
+              <button className="btn btn-secondary btn-sm" onClick={fetchLogs}>🔄 Refresh</button>
             </div>
-            {allLogs.length === 0
-              ? <p style={{ color: "#6b7280", textAlign: "center", padding: 32 }}>Tiada log lagi.</p>
-              : allLogs.map(l => (
-                <div key={l.id} style={{ background: "#f9fafb", borderRadius: 8, padding: 12, fontSize: 13, marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 4 }}>
-                    <div>
-                      <span style={{ fontWeight: 700 }}>{l.user_name}</span>
-                      <span style={{ color: "#6b7280", fontSize: 12, marginLeft: 6 }}>{l.email}</span>
-                      <span style={{ color: "#6b7280", fontSize: 12, marginLeft: 6 }}>→ +{l.sender}</span>
+            <div style={{ padding:16,display:"flex",flexDirection:"column",gap:10 }}>
+              {allLogs.length===0
+                ? <p style={{ color:"#6b7280",textAlign:"center",padding:24 }}>Tiada log lagi.</p>
+                : allLogs.map(l=>(
+                <div key={l.id} style={{ background:"#f9fafb",borderRadius:8,padding:12,fontSize:13 }}>
+                  <div style={{ display:"flex",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:4 }}>
+                    <div style={{ minWidth:0 }}>
+                      <span style={{ fontWeight:700 }}>{l.user_name}</span>
+                      <span style={{ color:"#6b7280",fontSize:11,marginLeft:6 }}>→ +{l.sender}</span>
                     </div>
-                    <span style={{ color: "#9ca3af", fontSize: 11 }}>{new Date(l.created_at).toLocaleString("ms-MY")}</span>
+                    <span style={{ color:"#9ca3af",fontSize:11,flexShrink:0 }}>{new Date(l.created_at).toLocaleString("ms-MY")}</span>
                   </div>
-                  <div style={{ background: "#e0f2fe", borderRadius: 5, padding: "6px 10px", marginBottom: 4 }}>👤 {l.message}</div>
-                  <div style={{ background: "#dcfce7", borderRadius: 5, padding: "6px 10px" }}>🤖 {l.reply}</div>
+                  <div className="bubble-user" style={{ marginBottom:4 }}>👤 {l.message}</div>
+                  <div className="bubble-bot">🤖 {l.reply}</div>
                 </div>
-              ))
-            }
+              ))}
+            </div>
           </div>
         )}
 
