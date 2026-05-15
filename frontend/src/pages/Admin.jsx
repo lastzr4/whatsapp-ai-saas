@@ -416,6 +416,7 @@ export default function Admin() {
   const navigate  = useNavigate();
   const user      = JSON.parse(localStorage.getItem("user") || "{}");
   const [tab, setTab]           = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats]       = useState(null);
   const [tenants, setTenants]   = useState([]);
   const [allLogs, setAllLogs]   = useState([]);
@@ -483,19 +484,23 @@ export default function Admin() {
         </div>
       )}
 
+      {/* Overlay */}
+      <div className={`sidebar-overlay${sidebarOpen?" open":""}`} onClick={()=>setSidebarOpen(false)} />
+
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar${sidebarOpen?" open":""}`}>
         <div className="sidebar-logo">
-          <div style={{ width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#6366f1,#4f46e5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0 }}>🛡️</div>
-          <div>
-            <div style={{ color:"#f1f5f9",fontWeight:700,fontSize:14 }}>Admin Panel</div>
+          <div style={{ width:34,height:34,borderRadius:9,background:"linear-gradient(135deg,#6366f1,#4f46e5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0 }}>🛡️</div>
+          <div style={{ flex:1,minWidth:0 }}>
+            <div style={{ color:"#f1f5f9",fontWeight:700,fontSize:13 }}>Admin Panel</div>
             <div style={{ color:"#64748b",fontSize:11 }}>Super Admin</div>
           </div>
+          <button className="sidebar-close" onClick={()=>setSidebarOpen(false)}>✕</button>
         </div>
 
         <nav className="sidebar-nav">
           {ADMIN_NAV.map(n => (
-            <button key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={() => setTab(n.id)}>
+            <button key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>{ setTab(n.id); setSidebarOpen(false); }}>
               <span className="nav-icon">{n.icon}</span>
               <span>{n.label}</span>
               {n.id===1 && tenants.length>0 && (
@@ -503,8 +508,8 @@ export default function Admin() {
               )}
             </button>
           ))}
-          <div className="divider" style={{ margin:"10px 0" }} />
-          <button className="nav-item" onClick={() => navigate("/dashboard")}>
+          <div style={{ height:1,background:"rgba(255,255,255,.08)",margin:"8px 0" }} />
+          <button className="nav-item" onClick={()=>navigate("/dashboard")}>
             <span className="nav-icon">👤</span> User Dashboard
           </button>
         </nav>
@@ -519,9 +524,12 @@ export default function Admin() {
       {/* Main */}
       <main className="main">
         <div className="topbar">
-          <div style={{ minWidth:0 }}>
-            <div style={{ fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{ADMIN_NAV[tab]?.icon} {ADMIN_NAV[tab]?.label}</div>
-            <div style={{ fontSize:11,color:"#94a3b8" }}>Admin Panel</div>
+          <button className="hamburger" onClick={()=>setSidebarOpen(true)} aria-label="Menu">
+            <span/><span/><span/>
+          </button>
+          <div className="topbar-title">
+            <h1>{ADMIN_NAV[tab]?.icon} {ADMIN_NAV[tab]?.label}</h1>
+            <p>Admin Panel</p>
           </div>
           <div style={{ display:"flex",gap:6,flexShrink:0 }}>
             <span className="badge badge-purple" style={{ fontSize:10 }}>🛡️ Admin</span>
@@ -622,75 +630,43 @@ export default function Admin() {
               Menunjukkan {filtered.length} daripada {tenants.length} tenant
             </div>
 
-            {/* Tenant table — desktop */}
-            <div className="mob-hide" style={{ marginTop:8 }}>
-              <div className="card" style={{ padding:0,overflow:"hidden" }}>
-                <div style={{ overflowX:"auto" }}>
-                  <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
-                    <thead>
-                      <tr style={{ background:"#f9fafb",borderBottom:"1px solid #e5e7eb" }}>
-                        {["Tenant","Plan","Bot Status","Nombor WA","Mesej","Daftar",""].map((h,i)=>(
-                          <th key={i} style={{ padding:"12px 16px",textAlign:"left",fontWeight:600,color:"#374151",whiteSpace:"nowrap" }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.length===0
-                        ? <tr><td colSpan={7} style={{ padding:32,textAlign:"center",color:"#6b7280" }}>Tiada tenant dijumpai</td></tr>
-                        : filtered.map(t=>(
-                        <tr key={t.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
-                          <td style={{ padding:"12px 16px" }}>
-                            <div style={{ fontWeight:600 }}>{t.name}</div>
-                            <div style={{ color:"#6b7280",fontSize:12 }}>{t.email}</div>
-                            {!t.is_active && <span className="badge badge-red" style={{ fontSize:10,marginTop:2 }}>DIGANTUNG</span>}
-                          </td>
-                          <td style={{ padding:"12px 16px" }}><PlanBadge plan={t.plan} /></td>
-                          <td style={{ padding:"12px 16px" }}><BotBadge status={t.bot_status} /></td>
-                          <td style={{ padding:"12px 16px",color:t.phone_number?"#111":"#9ca3af" }}>{t.phone_number?`+${t.phone_number}`:"—"}</td>
-                          <td style={{ padding:"12px 16px" }}>
-                            <span style={{ fontWeight:600 }}>{t.total_messages}</span>
-                            <span style={{ color:"#6b7280",fontSize:11,marginLeft:4 }}>({t.today_messages} hari ini)</span>
-                          </td>
-                          <td style={{ padding: "12px 16px", color: "#6b7280", whiteSpace: "nowrap" }}>
-                            {new Date(t.created_at).toLocaleDateString("ms-MY")}
-                          </td>
-                          <td style={{ padding: "12px 16px" }}>
-                            <button className="btn btn-outline" style={{ fontSize: 12, padding: "5px 12px" }}
-                              onClick={() => setSelected(t)}>
-                              ✏️ Edit
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    }
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {/* Tenant table — scrollable on mobile */}
+            <div className="tenant-table-wrap" style={{ marginTop:8,borderRadius:12,border:"1px solid var(--border)",overflow:"hidden" }}>
+              <table>
+                <thead>
+                  <tr style={{ background:"#f9fafb" }}>
+                    {["Tenant","Plan","Bot Status","Nombor WA","Mesej","Daftar",""].map((h,i)=>(
+                      <th key={i}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length===0
+                    ? <tr><td colSpan={7} style={{ padding:32,textAlign:"center",color:"#6b7280" }}>Tiada tenant dijumpai</td></tr>
+                    : filtered.map(t=>(
+                    <tr key={t.id}>
+                      <td>
+                        <div style={{ fontWeight:600,fontSize:13 }}>{t.name}</div>
+                        <div style={{ color:"#6b7280",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:150 }}>{t.email}</div>
+                        {!t.is_active && <span className="badge badge-red" style={{ fontSize:10 }}>DIGANTUNG</span>}
+                      </td>
+                      <td><PlanBadge plan={t.plan} /></td>
+                      <td><BotBadge status={t.bot_status} /></td>
+                      <td style={{ color:t.phone_number?"#111":"#9ca3af",whiteSpace:"nowrap" }}>{t.phone_number?`+${t.phone_number}`:"—"}</td>
+                      <td style={{ whiteSpace:"nowrap" }}>
+                        <span style={{ fontWeight:600 }}>{t.total_messages}</span>
+                        <span style={{ color:"#6b7280",fontSize:11,marginLeft:4 }}>({t.today_messages})</span>
+                      </td>
+                      <td style={{ color:"#6b7280",whiteSpace:"nowrap" }}>{new Date(t.created_at).toLocaleDateString("ms-MY")}</td>
+                      <td>
+                        <button className="btn btn-outline btn-sm" onClick={()=>setSelected(t)}>✏️ Edit</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            {/* Tenant list — mobile cards */}
-            <div style={{ display:"none" }} className="mob-tenant-list">
-              {filtered.length===0
-                ? <div className="card" style={{ textAlign:"center",color:"#6b7280",padding:32 }}>Tiada tenant dijumpai</div>
-                : filtered.map(t=>(
-                <div key={t.id} className="card" style={{ marginBottom:10,cursor:"pointer" }} onClick={()=>setSelected(t)}>
-                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8 }}>
-                    <div style={{ minWidth:0 }}>
-                      <div style={{ fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.name}</div>
-                      <div style={{ color:"#6b7280",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.email}</div>
-                    </div>
-                    <BotBadge status={t.bot_status} />
-                  </div>
-                  <div style={{ display:"flex",gap:6,flexWrap:"wrap",alignItems:"center" }}>
-                    <PlanBadge plan={t.plan} />
-                    {t.phone_number && <span style={{ fontSize:12,color:"#64748b" }}>📱 +{t.phone_number}</span>}
-                    {!t.is_active && <span className="badge badge-red">DIGANTUNG</span>}
-                    <span style={{ marginLeft:"auto",fontSize:12,color:"#94a3b8" }}>{t.total_messages} mesej</span>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
@@ -735,20 +711,6 @@ export default function Admin() {
           onSave={() => { fetchAll(); showGlobalMsg("✅ Perubahan disimpan!"); }}
         />
       )}
-
-      {/* Mobile Bottom Nav */}
-      <nav className="bottom-nav">
-        {ADMIN_NAV.map(n => (
-          <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
-            <span className="nav-icon">{n.icon}</span>
-            <span>{n.label}</span>
-          </button>
-        ))}
-        <button className="bottom-nav-item" onClick={()=>navigate("/dashboard")}>
-          <span className="nav-icon">👤</span>
-          <span>User</span>
-        </button>
-      </nav>
     </div>
   );
 }
