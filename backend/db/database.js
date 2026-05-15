@@ -5,14 +5,38 @@ import fs from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ── Lazy DB path — read env at runtime, not at import time ────────────────────
-// DATA_PATH env var is set in Dockerfile and Railway Variables
-// Falls back to project root for local dev
+// ── Debug logging ─────────────────────────────────────────────────────────────
+function dbLog(...args) {
+  console.log(`[DB]`, ...args);
+}
+
 function getDbPath() {
-  const dataRoot = process.env.DATA_PATH || process.env.DATA_ROOT || path.join(__dirname, "../..");
-  const dataDir  = path.join(dataRoot, "data");
+  const DATA_PATH  = process.env.DATA_PATH;
+  const DATA_ROOT  = process.env.DATA_ROOT;
+  const fallback   = path.join(__dirname, "../..");
+
+  dbLog(`DATA_PATH env  = "${DATA_PATH}"`);
+  dbLog(`DATA_ROOT env  = "${DATA_ROOT}"`);
+  dbLog(`__dirname      = "${__dirname}"`);
+  dbLog(`fallback path  = "${fallback}"`);
+
+  const dataRoot = DATA_PATH || DATA_ROOT || fallback;
+  dbLog(`Using dataRoot = "${dataRoot}"`);
+
+  const dataDir = path.join(dataRoot, "data");
   fs.mkdirSync(dataDir, { recursive: true });
-  return path.join(dataDir, "saas.db");
+  const dbPath = path.join(dataDir, "saas.db");
+  dbLog(`DB path        = "${dbPath}"`);
+
+  // Check if file exists and its size
+  if (fs.existsSync(dbPath)) {
+    const size = fs.statSync(dbPath).size;
+    dbLog(`DB file exists, size = ${size} bytes`);
+  } else {
+    dbLog(`DB file does NOT exist yet — will be created`);
+  }
+
+  return dbPath;
 }
 
 // ── Lazy DB instance ──────────────────────────────────────────────────────────
@@ -21,10 +45,10 @@ let _db = null;
 function getDb() {
   if (!_db) {
     const dbPath = getDbPath();
-    console.log(`🗄️  Opening database: ${dbPath}`);
     _db = new Database(dbPath);
     _db.pragma("journal_mode = WAL");
     _db.pragma("foreign_keys = ON");
+    dbLog(`Database connection opened`);
   }
   return _db;
 }
@@ -45,7 +69,6 @@ export function initDb() {
       notes TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now'))
     );
-
     CREATE TABLE IF NOT EXISTS bot_configs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER UNIQUE NOT NULL,
@@ -58,7 +81,6 @@ export function initDb() {
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
-
     CREATE TABLE IF NOT EXISTS bot_sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER UNIQUE NOT NULL,
@@ -68,7 +90,6 @@ export function initDb() {
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
-
     CREATE TABLE IF NOT EXISTS message_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -78,7 +99,6 @@ export function initDb() {
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
-
     CREATE TABLE IF NOT EXISTS _migrations (id INTEGER PRIMARY KEY, name TEXT UNIQUE);
   `);
 
@@ -114,14 +134,18 @@ export function initDb() {
       try {
         db.exec(m.sql);
         db.prepare("INSERT INTO _migrations (name) VALUES (?)").run(m.name);
+        dbLog(`Migration applied: ${m.name}`);
       } catch {}
     }
   }
 
-  console.log("✅ Database initialized:", getDbPath());
+  // Log user count to confirm data persistence
+  const userCount = db.prepare("SELECT COUNT(*) as c FROM users").get().c;
+  dbLog(`Users in database: ${userCount}`);
+  console.log(`✅ Database initialized: ${getDbPath()}`);
 }
 
-// ── Proxy export — routes call db.prepare() etc, this ensures lazy init ───────
+// ── Proxy export ──────────────────────────────────────────────────────────────
 const dbProxy = new Proxy({}, {
   get(_, prop) {
     return getDb()[prop];
