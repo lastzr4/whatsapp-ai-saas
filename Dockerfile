@@ -37,7 +37,7 @@ COPY . .
 
 # Install backend & frontend, then build
 RUN npm install --prefix backend
-RUN npm install --prefix frontend
+RUN npm install --prefix frontend --include=dev
 RUN npm run build --prefix frontend
 
 # Create data directories (overridden by Railway volume)
