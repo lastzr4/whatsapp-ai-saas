@@ -13,7 +13,26 @@ function getDataRoot() {
   return process.env.DATA_PATH || process.env.DATA_ROOT || path.join(__dirname, "../..");
 }
 
-// Multer — save uploads to persistent volume
+// ── Find QR file (any extension) ──────────────────────────────────────────────
+function getQrPath(userId) {
+  const dir = path.join(getDataRoot(), `uploads/${userId}`);
+  for (const ext of [".jpg",".jpeg",".png",".webp",".JPG",".PNG",".WEBP"]) {
+    const p = path.join(dir, `payment-qr${ext}`);
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+// ── Delete old QR files (all extensions) before saving new one ────────────────
+function deleteOldQr(userId) {
+  const dir = path.join(getDataRoot(), `uploads/${userId}`);
+  for (const ext of [".jpg",".jpeg",".png",".webp",".JPG",".PNG",".WEBP"]) {
+    const p = path.join(dir, `payment-qr${ext}`);
+    if (fs.existsSync(p)) { try { fs.unlinkSync(p); } catch {} }
+  }
+}
+
+// ── Multer storage ────────────────────────────────────────────────────────────
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(getDataRoot(), `uploads/${req.userId}`);
@@ -21,33 +40,50 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    const name = file.fieldname === "paymentQr" ? "payment-qr.jpg" : file.originalname;
-    cb(null, name);
+    if (file.fieldname === "paymentQr") {
+      // Delete old QR first (any extension)
+      deleteOldQr(req.userId);
+      // Save with original extension
+      const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
+      cb(null, `payment-qr${ext}`);
+    } else {
+      cb(null, `knowledge-${Date.now()}.txt`);
+    }
   },
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
-// Get config
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === "paymentQr") {
+      const allowed = ["image/jpeg","image/jpg","image/png","image/webp"];
+      if (!allowed.includes(file.mimetype)) {
+        return cb(new Error("Hanya imej PNG, JPG atau WEBP dibenarkan"));
+      }
+    }
+    if (file.fieldname === "knowledge") {
+      if (file.mimetype !== "text/plain") {
+        return cb(new Error("Hanya fail .txt dibenarkan untuk knowledge"));
+      }
+    }
+    cb(null, true);
+  },
+});
+
+// ── GET config (auto-create if missing) ───────────────────────────────────────
 router.get("/", authMiddleware, (req, res) => {
   let config = db.prepare("SELECT * FROM bot_configs WHERE user_id = ?").get(req.userId);
-
-  // Auto-create if missing (user created before bot_configs was set up)
   if (!config) {
     db.prepare("INSERT INTO bot_configs (user_id, bot_name) VALUES (?, ?)").run(req.userId, "AI Assistant");
     config = db.prepare("SELECT * FROM bot_configs WHERE user_id = ?").get(req.userId);
   }
-
-  // Also ensure bot_session exists
   const session = db.prepare("SELECT id FROM bot_sessions WHERE user_id = ?").get(req.userId);
-  if (!session) {
-    db.prepare("INSERT INTO bot_sessions (user_id) VALUES (?)").run(req.userId);
-  }
-
-  const qrPath = path.join(getDataRoot(), `uploads/${req.userId}/payment-qr.jpg`);
-  res.json({ ...config, has_payment_qr: fs.existsSync(qrPath) });
+  if (!session) db.prepare("INSERT INTO bot_sessions (user_id) VALUES (?)").run(req.userId);
+  res.json({ ...config, has_payment_qr: !!getQrPath(req.userId) });
 });
 
-// Update config
+// ── PUT config ────────────────────────────────────────────────────────────────
 router.put("/", authMiddleware, (req, res) => {
   const { bot_name, knowledge, ignore_groups, allowed_numbers, payment_caption } = req.body;
   db.prepare(`
@@ -66,50 +102,62 @@ router.put("/", authMiddleware, (req, res) => {
   res.json({ success: true });
 });
 
-// Upload payment QR image
-router.post("/upload-qr", authMiddleware, upload.single("paymentQr"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  res.json({ success: true });
+// ── Upload QR image ───────────────────────────────────────────────────────────
+router.post("/upload-qr", authMiddleware, (req, res, next) => {
+  upload.single("paymentQr")(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: "Tiada fail diupload" });
+    console.log(`✅ QR uploaded for user ${req.userId}: ${req.file.filename} (${req.file.size} bytes)`);
+    res.json({ success: true, filename: req.file.filename, size: req.file.size });
+  });
 });
 
-// Upload knowledge.txt
-router.post("/upload-knowledge", authMiddleware, upload.single("knowledge"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  const content = fs.readFileSync(req.file.path, "utf-8");
-  db.prepare("UPDATE bot_configs SET knowledge = ? WHERE user_id = ?").run(content, req.userId);
-  fs.unlinkSync(req.file.path);
-  res.json({ success: true, characters: content.length });
+// ── Serve QR image ────────────────────────────────────────────────────────────
+router.get("/payment-qr-image", authMiddleware, (req, res) => {
+  const qrPath = getQrPath(req.userId);
+  if (!qrPath) return res.status(404).json({ error: "QR tidak dijumpai" });
+  const ext = path.extname(qrPath).toLowerCase();
+  const mimeTypes = { ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".png":"image/png", ".webp":"image/webp" };
+  res.setHeader("Content-Type", mimeTypes[ext] || "image/jpeg");
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.sendFile(qrPath);
 });
 
-// Get message logs
+// ── Upload knowledge .txt ─────────────────────────────────────────────────────
+router.post("/upload-knowledge", authMiddleware, (req, res, next) => {
+  upload.single("knowledge")(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: "Tiada fail diupload" });
+    try {
+      const content = fs.readFileSync(req.file.path, "utf-8");
+      db.prepare("UPDATE bot_configs SET knowledge = ? WHERE user_id = ?").run(content, req.userId);
+      fs.unlinkSync(req.file.path);
+      res.json({ success: true, characters: content.length });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+});
+
+// ── Logs ──────────────────────────────────────────────────────────────────────
 router.get("/logs", authMiddleware, (req, res) => {
   const logs = db.prepare(
-    "SELECT * FROM message_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 50"
+    "SELECT * FROM message_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 100"
   ).all(req.userId);
   res.json(logs);
 });
 
-// Delete selected logs
 router.delete("/logs", authMiddleware, (req, res) => {
   const { ids } = req.body;
-  if (!ids || !ids.length) return res.status(400).json({ error: "No IDs provided" });
-  const placeholders = ids.map(() => "?").join(",");
-  db.prepare(`DELETE FROM message_logs WHERE id IN (${placeholders}) AND user_id = ?`)
-    .run(...ids, req.userId);
-  res.json({ success: true, deleted: ids.length });
+  if (!ids?.length) return res.status(400).json({ error: "No IDs" });
+  const ph = ids.map(()=>"?").join(",");
+  db.prepare(`DELETE FROM message_logs WHERE id IN (${ph}) AND user_id = ?`).run(...ids, req.userId);
+  res.json({ success: true });
 });
 
-// Delete all logs
 router.delete("/logs/all", authMiddleware, (req, res) => {
-  const result = db.prepare("DELETE FROM message_logs WHERE user_id = ?").run(req.userId);
-  res.json({ success: true, deleted: result.changes });
-});
-
-// Serve payment QR image
-router.get("/payment-qr-image", authMiddleware, (req, res) => {
-  const qrPath = path.join(getDataRoot(), `uploads/${req.userId}/payment-qr.jpg`);
-  if (!fs.existsSync(qrPath)) return res.status(404).json({ error: "Not found" });
-  res.sendFile(qrPath);
+  const r = db.prepare("DELETE FROM message_logs WHERE user_id = ?").run(req.userId);
+  res.json({ success: true, deleted: r.changes });
 });
 
 export default router;

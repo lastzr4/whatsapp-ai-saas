@@ -110,6 +110,40 @@ export default function Dashboard() {
     setSaving(false);
   }
 
+  async function handleQrUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = ""; // reset input so same file can be re-selected
+    // Type check
+    const allowed = ["image/jpeg","image/jpg","image/png","image/webp"];
+    if (!allowed.includes(file.type)) {
+      showToast("Hanya PNG, JPG atau WEBP dibenarkan","error"); return;
+    }
+    // Size check (max 5MB)
+    if (file.size > 5*1024*1024) {
+      showToast("Saiz fail terlalu besar. Maksimum 5MB","error"); return;
+    }
+    // Validate it actually loads as an image
+    try {
+      await new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => { URL.revokeObjectURL(url); resolve(); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(); };
+        img.src = url;
+      });
+    } catch {
+      showToast("Fail tidak sah. Sila upload imej QR yang betul","error"); return;
+    }
+    try {
+      showToast("Memuat naik QR...","info");
+      await uploadFile("/config/upload-qr","paymentQr",file);
+      setQrTs(Date.now());
+      await fetchConfig();
+      showToast("QR berjaya dimuat naik! ✅");
+    } catch(err) { showToast(err.message,"error"); }
+  }
+
   async function deleteSelectedLogs() {
     if (!selectedLogs.size || !confirm(`Padam ${selectedLogs.size} log?`)) return;
     await api("DELETE","/config/logs",{ ids:[...selectedLogs] });
@@ -390,37 +424,42 @@ export default function Dashboard() {
                 {config.has_payment_qr ? (
                   <div style={{ textAlign:"center",marginBottom:20 }}>
                     <div style={{ position:"relative",display:"inline-block" }}>
-                      <div style={{ borderRadius:16,border:"2px solid var(--border)",background:"#fff",padding:12,display:"inline-block" }}>
-                        <img key={qrTs} src={`/api/config/payment-qr-image?t=${qrTs}`} alt="QR"
-                          style={{ width:180,height:180,objectFit:"contain",display:"block" }} />
+                      <div style={{ borderRadius:16,border:"2px solid var(--border)",background:"#fff",padding:16,display:"inline-block",boxShadow:"0 4px 16px rgba(0,0,0,.06)" }}>
+                        <img
+                          key={qrTs}
+                          src={`/api/config/payment-qr-image?t=${qrTs}`}
+                          alt="QR Pembayaran"
+                          style={{ width:200,height:200,objectFit:"contain",display:"block",borderRadius:8 }}
+                          onError={e=>{
+                            e.target.style.display="none";
+                            e.target.parentElement.querySelector(".qr-error").style.display="flex";
+                          }}
+                        />
+                        <div className="qr-error" style={{ width:200,height:200,display:"none",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,background:"#f5f5f4",borderRadius:8 }}>
+                          <Camera size={36} style={{ color:"#d4d4d8" }} />
+                          <span style={{ fontSize:12,color:"var(--muted)",textAlign:"center" }}>Gambar tidak dapat dimuatkan.<br/>Sila upload semula.</span>
+                        </div>
                       </div>
-                      <div style={{ position:"absolute",top:8,right:8,width:24,height:24,borderRadius:99,background:"var(--green)",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                      <div style={{ position:"absolute",top:-8,right:-8,width:26,height:26,borderRadius:99,background:"var(--green)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(34,197,94,.4)" }}>
                         <CheckCircle2 size={14} color="#fff" />
                       </div>
                     </div>
-                    <div style={{ fontWeight:700,fontSize:14,marginTop:12,marginBottom:4 }}>QR Pembayaran Aktif ✅</div>
-                    <div style={{ fontSize:12,color:"var(--muted)",marginBottom:14 }}>Bot akan hantar QR ini secara automatik</div>
+                    <div style={{ fontWeight:700,fontSize:14,marginTop:14,marginBottom:4 }}>QR Pembayaran Aktif ✅</div>
+                    <div style={{ fontSize:12,color:"var(--muted)",marginBottom:16 }}>Bot akan hantar QR ini secara automatik</div>
                     <label className="btn btn-outline" style={{ cursor:"pointer" }}>
                       <RotateCw size={14} /> Ganti QR
-                      <input type="file" accept="image/*" style={{ display:"none" }} onChange={async e=>{
-                        if(!e.target.files[0]) return;
-                        await uploadFile("/config/upload-qr","paymentQr",e.target.files[0]);
-                        setQrTs(Date.now()); await fetchConfig(); showToast("QR berjaya diganti!");
-                      }} />
+                      <input type="file" accept="image/png,image/jpeg,image/webp" style={{ display:"none" }} onChange={e=>handleQrUpload(e)} />
                     </label>
                   </div>
                 ) : (
                   <div style={{ border:"2px dashed var(--border)",borderRadius:14,padding:36,textAlign:"center",background:"var(--muted-bg)",marginBottom:18 }}>
                     <Camera size={48} style={{ margin:"0 auto 12px",color:"#d4d4d8" }} />
                     <div style={{ fontWeight:600,fontSize:14,marginBottom:6 }}>Belum ada QR Pembayaran</div>
-                    <p style={{ fontSize:12,color:"var(--muted)",marginBottom:18 }}>Upload imej QR DuitNow, TNG, atau eWallet anda</p>
+                    <p style={{ fontSize:13,color:"var(--muted)",marginBottom:4 }}>Upload imej QR DuitNow, TNG, atau eWallet anda</p>
+                    <p style={{ fontSize:12,color:"#a8a29e",marginBottom:20 }}>PNG, JPG atau WEBP · Saiz max 5MB</p>
                     <label className="btn btn-default" style={{ cursor:"pointer" }}>
                       <Upload size={15} /> Upload QR
-                      <input type="file" accept="image/*" style={{ display:"none" }} onChange={async e=>{
-                        if(!e.target.files[0]) return;
-                        await uploadFile("/config/upload-qr","paymentQr",e.target.files[0]);
-                        setQrTs(Date.now()); await fetchConfig(); showToast("QR berjaya dimuat naik!");
-                      }} />
+                      <input type="file" accept="image/png,image/jpeg,image/webp" style={{ display:"none" }} onChange={e=>handleQrUpload(e)} />
                     </label>
                   </div>
                 )}
