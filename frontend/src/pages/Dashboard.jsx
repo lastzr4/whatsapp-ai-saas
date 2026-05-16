@@ -4,7 +4,7 @@ import {
   Plug, Settings, BookOpen, CreditCard, ScrollText,
   Bot, LogOut, Play, RotateCw, Square, Upload, Trash2,
   RefreshCw, Smartphone, CheckCircle2, Camera, MessageSquare,
-  User as UserIcon, Menu as MenuIcon,
+  User as UserIcon, AlertCircle,
 } from "lucide-react";
 import { api, uploadFile } from "../lib/api.js";
 
@@ -68,6 +68,8 @@ export default function Dashboard() {
   const [tab, setTab]                   = useState(0);
   const [status, setStatus]             = useState({ status:"disconnected", is_running:false });
   const [config, setConfig]             = useState(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError]   = useState(null);
   const [logs, setLogs]                 = useState([]);
   const [selectedLogs, setSelectedLogs] = useState(new Set());
   const [qrTs, setQrTs]                 = useState(Date.now());
@@ -78,7 +80,16 @@ export default function Dashboard() {
   const showToast = (text, type="success") => setToast({ text, type });
 
   async function fetchStatus() { try { setStatus(await api("GET","/bot/status")); } catch {} }
-  async function fetchConfig() { try { setConfig(await api("GET","/config")); } catch {} }
+  async function fetchConfig() {
+    setConfigLoading(true); setConfigError(null);
+    try {
+      const c = await api("GET","/config");
+      setConfig(c);
+    } catch(e) {
+      setConfigError(e.message);
+    }
+    setConfigLoading(false);
+  }
   async function fetchLogs()   { try { setLogs(await api("GET","/config/logs")); } catch {} }
 
   useEffect(() => {
@@ -265,7 +276,16 @@ export default function Dashboard() {
           )}
 
           {/* ── Tab 1: Settings ── */}
-          {tab===1 && config && (
+          {tab===1 && (
+            configLoading ? <div style={{ textAlign:"center",padding:48 }}><div className="spinner" style={{ margin:"0 auto" }} /></div>
+            : configError ? (
+              <div className="card" style={{ padding:32,textAlign:"center",maxWidth:400,margin:"0 auto" }}>
+                <AlertCircle size={36} style={{ margin:"0 auto 12px",color:"var(--red)" }} />
+                <div style={{ fontWeight:600,marginBottom:8 }}>Gagal memuatkan tetapan</div>
+                <p style={{ fontSize:13,color:"var(--muted)",marginBottom:16 }}>{configError}</p>
+                <button className="btn btn-default" onClick={fetchConfig}>Cuba Semula</button>
+              </div>
+            ) : config && (
             <div style={{ maxWidth:580,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
               <div className="card" style={{ padding:"20px 22px" }}>
                 <div style={{ fontWeight:700,fontSize:15,marginBottom:4 }}>⚙️ Tetapan Bot</div>
@@ -296,10 +316,18 @@ export default function Dashboard() {
                 {saving?<><span className="spinner spinner-white" style={{ width:16,height:16 }}/> Menyimpan...</>:"💾 Simpan Tetapan"}
               </button>
             </div>
-          )}
+          ))}
 
           {/* ── Tab 2: Knowledge ── */}
-          {tab===2 && config && (
+          {tab===2 && (
+            configLoading ? <div style={{ textAlign:"center",padding:48 }}><div className="spinner" style={{ margin:"0 auto" }} /></div>
+            : configError ? (
+              <div className="card" style={{ padding:32,textAlign:"center",maxWidth:400,margin:"0 auto" }}>
+                <AlertCircle size={36} style={{ margin:"0 auto 12px",color:"var(--red)" }} />
+                <div style={{ fontWeight:600,marginBottom:8 }}>Gagal memuatkan tetapan</div>
+                <button className="btn btn-default btn-sm" onClick={fetchConfig} style={{ marginTop:8 }}>Cuba Semula</button>
+              </div>
+            ) : config && (
             <div style={{ maxWidth:760,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
               <div className="card" style={{ padding:"20px 22px" }}>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,gap:10,flexWrap:"wrap" }}>
@@ -342,10 +370,18 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
-          )}
+          ))}
 
           {/* ── Tab 3: Payment QR ── */}
-          {tab===3 && config && (
+          {tab===3 && (
+            configLoading ? <div style={{ textAlign:"center",padding:48 }}><div className="spinner" style={{ margin:"0 auto" }} /></div>
+            : configError ? (
+              <div className="card" style={{ padding:32,textAlign:"center",maxWidth:400,margin:"0 auto" }}>
+                <AlertCircle size={36} style={{ margin:"0 auto 12px",color:"var(--red)" }} />
+                <div style={{ fontWeight:600,marginBottom:8 }}>Gagal memuatkan tetapan</div>
+                <button className="btn btn-default btn-sm" onClick={fetchConfig} style={{ marginTop:8 }}>Cuba Semula</button>
+              </div>
+            ) : config && (
             <div style={{ maxWidth:520,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
               <div className="card" style={{ padding:"20px 22px" }}>
                 <div style={{ fontWeight:700,fontSize:15,marginBottom:4 }}>💳 QR Pembayaran</div>
@@ -408,7 +444,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-          )}
+          ))}
 
           {/* ── Tab 4: Logs ── */}
           {tab===4 && (
