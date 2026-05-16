@@ -4,10 +4,10 @@ import { api, uploadFile } from "../lib/api.js";
 
 const NAV = [
   { icon:"🔌", label:"Sambungan",   id:0 },
-  { icon:"⚙️", label:"Tetapan Bot", id:1 },
-  { icon:"📚", label:"Pengetahuan", id:2 },
-  { icon:"💳", label:"QR Bayaran",  id:3 },
-  { icon:"📋", label:"Log Mesej",   id:4 },
+  { icon:"⚙️", label:"Tetapan",    id:1 },
+  { icon:"📚", label:"Knowledge",   id:2 },
+  { icon:"💳", label:"QR",          id:3 },
+  { icon:"📋", label:"Log",         id:4 },
 ];
 
 function Toast({ text, type, onDone }) {
@@ -30,7 +30,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const [tab, setTab]                   = useState(0);
-  const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [status, setStatus]             = useState({ status:"disconnected", is_running:false });
   const [config, setConfig]             = useState(null);
   const [logs, setLogs]                 = useState([]);
@@ -52,8 +51,6 @@ export default function Dashboard() {
     return () => clearInterval(pollRef.current);
   }, []);
   useEffect(() => { if (tab===4) fetchLogs(); }, [tab]);
-
-  function navTo(id) { setTab(id); setSidebarOpen(false); }
 
   const startBot   = async () => { await api("POST","/bot/start");   showToast("Bot sedang dihidupkan..."); };
   const stopBot    = async () => { await api("POST","/bot/stop");    showToast("Bot dihentikan","error"); };
@@ -86,21 +83,16 @@ export default function Dashboard() {
     <div className="layout">
       {toast && <Toast {...toast} onDone={()=>setToast(null)} />}
 
-      {/* ── Overlay ── */}
-      <div className={`sidebar-overlay${sidebarOpen?" open":""}`} onClick={()=>setSidebarOpen(false)} />
-
-      {/* ── Sidebar ── */}
-      <aside className={`sidebar${sidebarOpen?" open":""}`}>
+      {/* ── Desktop Sidebar ── */}
+      <aside className="sidebar">
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">🤖</div>
-          <div style={{ flex:1,minWidth:0 }}>
-            <div style={{ color:"#f1f5f9",fontWeight:700,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>WA AI Bot</div>
+          <div style={{ minWidth:0 }}>
+            <div style={{ color:"#f1f5f9",fontWeight:700,fontSize:14 }}>WA AI Bot</div>
             <div style={{ color:"#64748b",fontSize:11 }}>Dashboard</div>
           </div>
-          <button className="sidebar-close" onClick={()=>setSidebarOpen(false)}>✕</button>
         </div>
 
-        {/* Bot status pill */}
         <div style={{ margin:"10px 8px",background:"rgba(255,255,255,.05)",borderRadius:10,padding:"10px 12px",border:"1px solid rgba(255,255,255,.06)" }}>
           <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
             <StatusDot status={status.status} />
@@ -109,16 +101,16 @@ export default function Dashboard() {
           </div>
           <div style={{ display:"flex",gap:5 }}>
             {!status.is_running && <button className="btn btn-primary btn-sm" style={{ flex:1,fontSize:11 }} onClick={startBot}>▶ Hidupkan</button>}
-            {status.is_running  && <button className="btn btn-secondary btn-sm" style={{ flex:1,fontSize:11 }} onClick={restartBot}>🔄 Restart</button>}
-            {status.is_running  && <button className="btn btn-danger btn-sm" style={{ flex:1,fontSize:11 }} onClick={stopBot}>⏹ Stop</button>}
+            {status.is_running  && <button className="btn btn-secondary btn-sm" style={{ flex:1,fontSize:11 }} onClick={restartBot}>🔄</button>}
+            {status.is_running  && <button className="btn btn-danger btn-sm" style={{ flex:1,fontSize:11 }} onClick={stopBot}>⏹</button>}
           </div>
         </div>
 
         <nav className="sidebar-nav">
           {NAV.map(n => (
-            <button key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>navTo(n.id)}>
+            <button key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
               <span className="nav-icon">{n.icon}</span>
-              <span>{n.label}</span>
+              <span>{["Sambungan","Tetapan Bot","Pengetahuan","QR Bayaran","Log Mesej"][n.id]}</span>
             </button>
           ))}
         </nav>
@@ -135,23 +127,23 @@ export default function Dashboard() {
 
       {/* ── Main ── */}
       <main className="main">
-        {/* Topbar */}
         <div className="topbar">
-          <button className="hamburger" onClick={()=>setSidebarOpen(true)} aria-label="Menu">
-            <span/><span/><span/>
-          </button>
-          <div className="topbar-title">
-            <h1>{NAV[tab]?.icon} {NAV[tab]?.label}</h1>
-            <p>WhatsApp AI Bot</p>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+              {NAV[tab]?.icon} {["Sambungan","Tetapan Bot","Pengetahuan","QR Bayaran","Log Mesej"][tab]}
+            </div>
+            <div style={{ fontSize:11,color:"#94a3b8" }}>WhatsApp AI Bot</div>
           </div>
           <div style={{ display:"flex",gap:6,alignItems:"center",flexShrink:0 }}>
             <span className={`badge ${statusBadge}`} style={{ fontSize:10 }}>
               <StatusDot status={status.status} />{statusLabel}
             </span>
+            {!status.is_running && <button className="btn btn-primary btn-sm" style={{ fontSize:11,padding:"5px 10px" }} onClick={startBot}>▶</button>}
+            {status.is_running  && <button className="btn btn-secondary btn-sm" style={{ fontSize:11,padding:"5px 10px" }} onClick={restartBot}>🔄</button>}
+            {status.is_running  && <button className="btn btn-danger btn-sm" style={{ fontSize:11,padding:"5px 10px" }} onClick={stopBot}>⏹</button>}
           </div>
         </div>
 
-        {/* Page content */}
         <div className="page fade-in">
 
           {/* ── Tab 0: Connection ── */}
@@ -216,7 +208,7 @@ export default function Dashboard() {
                 <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
                   <div>
                     <label>Nama Bot</label>
-                    <input className="input" value={config.bot_name} onChange={e=>setConfig({...config,bot_name:e.target.value})} />
+                    <input className="input" value={config.bot_name} onChange={e=>setConfig({...config,bot_name:e.target.value})} placeholder="Contoh: AI Assistant Kedai Saya" />
                   </div>
                   <div>
                     <label>Nombor Dibenarkan</label>
@@ -243,31 +235,43 @@ export default function Dashboard() {
 
           {/* ── Tab 2: Knowledge ── */}
           {tab===2 && config && (
-            <div style={{ maxWidth:700,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
+            <div style={{ maxWidth:720,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
               <div className="card">
-                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,gap:8 }}>
-                  <div className="section-title">📚 Pangkalan Pengetahuan</div>
-                  <span style={{ fontSize:11,color:"#94a3b8",background:"#f1f5f9",padding:"3px 9px",borderRadius:99,flexShrink:0 }}>{(config.knowledge||"").length.toLocaleString()} aksara</span>
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,gap:8,flexWrap:"wrap" }}>
+                  <div>
+                    <div className="section-title">📚 Pangkalan Pengetahuan</div>
+                    <div style={{ fontSize:12,color:"#94a3b8",marginTop:2 }}>Bot menjawab berdasarkan info ini</div>
+                  </div>
+                  <span style={{ fontSize:11,color:"#94a3b8",background:"#f1f5f9",padding:"3px 10px",borderRadius:99,flexShrink:0 }}>
+                    {(config.knowledge||"").length.toLocaleString()} aksara
+                  </span>
                 </div>
-                <textarea className="input" style={{ minHeight:280 }}
-                  placeholder={"TENTANG PERNIAGAAN\n===================\nNama: Kedai Saya\n\nPRODUK\n=======\n1. Produk A — RM50"}
-                  value={config.knowledge} onChange={e=>setConfig({...config,knowledge:e.target.value})} />
-                <div className="btn-row" style={{ marginTop:12 }}>
-                  <button className="btn btn-primary" onClick={saveConfig} disabled={saving} style={{ flex:1 }}>
-                    {saving?<><span className="spinner" style={{ width:14,height:14 }}/> Simpan...</>:"💾 Simpan"}
+                <textarea className="input" style={{ minHeight:320,fontFamily:"'Courier New',monospace" }}
+                  placeholder={"TENTANG PERNIAGAAN\n===================\nNama: Kedai Saya\nWebsite: www.example.com\n\nPRODUK\n=======\n1. Produk A — RM50\n\nFAQ\n====\nS: Cara beli?\nJ: Pergi ke website..."}
+                  value={config.knowledge}
+                  onChange={e=>setConfig({...config,knowledge:e.target.value})} />
+                <div className="btn-row" style={{ marginTop:14 }}>
+                  <button className="btn btn-primary" onClick={saveConfig} disabled={saving}>
+                    {saving?<><span className="spinner" style={{ width:14,height:14 }}/> Menyimpan...</>:"💾 Simpan"}
                   </button>
-                  <label className="btn btn-outline" style={{ cursor:"pointer",flex:1 }}>
+                  <label className="btn btn-outline" style={{ cursor:"pointer" }}>
                     📁 Upload .txt
                     <input type="file" accept=".txt" style={{ display:"none" }} onChange={async e=>{
                       if(!e.target.files[0]) return;
-                      try { const r=await uploadFile("/config/upload-knowledge","knowledge",e.target.files[0]); await fetchConfig(); showToast(`${r.characters.toLocaleString()} aksara dimuat!`); }
-                      catch(err) { showToast(err.message,"error"); }
+                      try {
+                        const r = await uploadFile("/config/upload-knowledge","knowledge",e.target.files[0]);
+                        await fetchConfig();
+                        showToast(`✅ ${r.characters.toLocaleString()} aksara dimuat!`);
+                      } catch(err) { showToast(err.message,"error"); }
                     }} />
                   </label>
+                  {config.knowledge && (
+                    <button className="btn btn-ghost" onClick={()=>setConfig({...config,knowledge:""})}>🗑 Kosong</button>
+                  )}
                 </div>
               </div>
               <div className="card" style={{ background:"#f0fdf4",border:"1px solid #bbf7d0" }}>
-                <div style={{ fontWeight:700,fontSize:12,color:"#15803d",marginBottom:8 }}>💡 Tips</div>
+                <div style={{ fontWeight:700,fontSize:13,color:"#15803d",marginBottom:8 }}>💡 Tips</div>
                 {["Masukkan info produk & harga","Tambah FAQ pelanggan","Sertakan waktu operasi & cara hubungi"].map((t,i)=>(
                   <div key={i} style={{ fontSize:12,color:"#166534",display:"flex",gap:6,marginBottom:4 }}><span>✓</span>{t}</div>
                 ))}
@@ -285,11 +289,12 @@ export default function Dashboard() {
                   <div style={{ textAlign:"center",marginBottom:18 }}>
                     <div style={{ display:"inline-block",position:"relative" }}>
                       <img key={qrTs} src={`/api/config/payment-qr-image?t=${qrTs}`} alt="QR"
-                        style={{ width:180,height:180,objectFit:"contain",borderRadius:12,border:"2px solid #e2e8f0",padding:8,background:"#fff",display:"block" }} />
+                        style={{ width:190,height:190,objectFit:"contain",borderRadius:14,border:"2px solid #e2e8f0",padding:8,background:"#fff",display:"block" }} />
                       <div style={{ position:"absolute",top:6,right:6,background:"#22c55e",borderRadius:99,width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11 }}>✓</div>
                     </div>
-                    <div style={{ fontWeight:700,fontSize:14,marginTop:10,marginBottom:4 }}>QR Aktif ✅</div>
-                    <label className="btn btn-outline" style={{ cursor:"pointer",fontSize:13 }}>
+                    <div style={{ fontWeight:700,fontSize:14,marginTop:12,marginBottom:4 }}>QR Pembayaran Aktif ✅</div>
+                    <div style={{ fontSize:12,color:"#94a3b8",marginBottom:14 }}>Bot akan hantar QR ini secara automatik</div>
+                    <label className="btn btn-outline" style={{ cursor:"pointer" }}>
                       🔄 Ganti QR
                       <input type="file" accept="image/*" style={{ display:"none" }} onChange={async e=>{
                         if(!e.target.files[0]) return;
@@ -299,9 +304,10 @@ export default function Dashboard() {
                     </label>
                   </div>
                 ) : (
-                  <div style={{ border:"2px dashed #e2e8f0",borderRadius:12,padding:28,textAlign:"center",background:"#f8fafc",marginBottom:16 }}>
-                    <div style={{ fontSize:44,marginBottom:10 }}>📷</div>
-                    <div style={{ fontWeight:600,fontSize:14,color:"#475569",marginBottom:16 }}>Belum ada QR Pembayaran</div>
+                  <div style={{ border:"2px dashed #e2e8f0",borderRadius:14,padding:32,textAlign:"center",background:"#f8fafc",marginBottom:16 }}>
+                    <div style={{ fontSize:48,marginBottom:10 }}>📷</div>
+                    <div style={{ fontWeight:600,fontSize:14,color:"#475569",marginBottom:6 }}>Belum ada QR Pembayaran</div>
+                    <div style={{ fontSize:13,color:"#94a3b8",marginBottom:18 }}>Upload imej QR DuitNow, TNG, atau eWallet anda</div>
                     <label className="btn btn-primary" style={{ cursor:"pointer" }}>
                       📤 Upload QR
                       <input type="file" accept="image/*" style={{ display:"none" }} onChange={async e=>{
@@ -314,7 +320,8 @@ export default function Dashboard() {
                 )}
                 <div style={{ marginBottom:14 }}>
                   <label>Teks Kapsyen QR</label>
-                  <textarea className="input" style={{ minHeight:80,fontFamily:"inherit",fontSize:14 }} value={config.payment_caption} onChange={e=>setConfig({...config,payment_caption:e.target.value})} />
+                  <textarea className="input" style={{ minHeight:90,fontFamily:"inherit",fontSize:14 }}
+                    value={config.payment_caption} onChange={e=>setConfig({...config,payment_caption:e.target.value})} />
                 </div>
                 <button className="btn btn-primary" onClick={saveConfig} disabled={saving} style={{ width:"100%" }}>
                   {saving?<><span className="spinner" style={{ width:14,height:14 }}/> Menyimpan...</>:"💾 Simpan Kapsyen"}
@@ -333,11 +340,13 @@ export default function Dashboard() {
 
           {/* ── Tab 4: Logs ── */}
           {tab===4 && (
-            <div style={{ maxWidth:700,margin:"0 auto" }}>
+            <div style={{ maxWidth:720,margin:"0 auto" }}>
               <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,gap:8,flexWrap:"wrap" }}>
                 <div className="section-title">
                   📋 Log Mesej
-                  <span style={{ fontSize:12,fontWeight:400,color:"#94a3b8",marginLeft:8 }}>({logs.length}){selectedLogs.size>0&&<span style={{ color:"#3b82f6",fontWeight:600 }}> · {selectedLogs.size} dipilih</span>}</span>
+                  <span style={{ fontSize:12,fontWeight:400,color:"#94a3b8",marginLeft:8 }}>
+                    ({logs.length}){selectedLogs.size>0&&<span style={{ color:"#3b82f6",fontWeight:600 }}> · {selectedLogs.size} dipilih</span>}
+                  </span>
                 </div>
                 <div className="btn-row">
                   {selectedLogs.size>0 && <button className="btn btn-danger btn-sm" onClick={deleteSelectedLogs}>🗑 ({selectedLogs.size})</button>}
@@ -381,6 +390,16 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* ── Mobile Bottom Nav ── */}
+      <nav className="bottom-nav">
+        {NAV.map(n => (
+          <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
+            <span className="nav-icon">{n.icon}</span>
+            <span>{n.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

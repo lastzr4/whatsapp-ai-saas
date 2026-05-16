@@ -416,7 +416,6 @@ export default function Admin() {
   const navigate  = useNavigate();
   const user      = JSON.parse(localStorage.getItem("user") || "{}");
   const [tab, setTab]           = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats]       = useState(null);
   const [tenants, setTenants]   = useState([]);
   const [allLogs, setAllLogs]   = useState([]);
@@ -484,23 +483,19 @@ export default function Admin() {
         </div>
       )}
 
-      {/* Overlay */}
-      <div className={`sidebar-overlay${sidebarOpen?" open":""}`} onClick={()=>setSidebarOpen(false)} />
-
       {/* Sidebar */}
-      <aside className={`sidebar${sidebarOpen?" open":""}`}>
+      <aside className="sidebar">
         <div className="sidebar-logo">
           <div style={{ width:34,height:34,borderRadius:9,background:"linear-gradient(135deg,#6366f1,#4f46e5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0 }}>🛡️</div>
           <div style={{ flex:1,minWidth:0 }}>
             <div style={{ color:"#f1f5f9",fontWeight:700,fontSize:13 }}>Admin Panel</div>
             <div style={{ color:"#64748b",fontSize:11 }}>Super Admin</div>
           </div>
-          <button className="sidebar-close" onClick={()=>setSidebarOpen(false)}>✕</button>
         </div>
 
         <nav className="sidebar-nav">
           {ADMIN_NAV.map(n => (
-            <button key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>{ setTab(n.id); setSidebarOpen(false); }}>
+            <button key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
               <span className="nav-icon">{n.icon}</span>
               <span>{n.label}</span>
               {n.id===1 && tenants.length>0 && (
@@ -524,12 +519,9 @@ export default function Admin() {
       {/* Main */}
       <main className="main">
         <div className="topbar">
-          <button className="hamburger" onClick={()=>setSidebarOpen(true)} aria-label="Menu">
-            <span/><span/><span/>
-          </button>
-          <div className="topbar-title">
-            <h1>{ADMIN_NAV[tab]?.icon} {ADMIN_NAV[tab]?.label}</h1>
-            <p>Admin Panel</p>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{ADMIN_NAV[tab]?.icon} {ADMIN_NAV[tab]?.label}</div>
+            <div style={{ fontSize:11,color:"#94a3b8" }}>Admin Panel</div>
           </div>
           <div style={{ display:"flex",gap:6,flexShrink:0 }}>
             <span className="badge badge-purple" style={{ fontSize:10 }}>🛡️ Admin</span>
@@ -711,6 +703,20 @@ export default function Admin() {
           onSave={() => { fetchAll(); showGlobalMsg("✅ Perubahan disimpan!"); }}
         />
       )}
+
+      {/* Mobile Bottom Nav */}
+      <nav className="bottom-nav">
+        {ADMIN_NAV.map(n => (
+          <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
+            <span className="nav-icon">{n.icon}</span>
+            <span>{n.label}</span>
+          </button>
+        ))}
+        <button className="bottom-nav-item" onClick={()=>navigate("/dashboard")}>
+          <span className="nav-icon">👤</span>
+          <span>User</span>
+        </button>
+      </nav>
     </div>
   );
 }
