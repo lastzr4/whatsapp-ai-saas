@@ -4,6 +4,7 @@ import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Admin from "./pages/Admin.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
+import Landing from "./pages/Landing.jsx";
 
 function PrivateRoute({ children }) {
   return localStorage.getItem("token") ? children : <Navigate to="/login" />;
@@ -21,12 +22,13 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/"               element={<Landing />} />
         <Route path="/login"          element={<Login />} />
         <Route path="/register"       element={<Register />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard"      element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/admin"          element={<AdminRoute><Admin /></AdminRoute>} />
-        <Route path="*"               element={<Navigate to="/dashboard" />} />
+        <Route path="*"               element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   );
