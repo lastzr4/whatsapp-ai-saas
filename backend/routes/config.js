@@ -29,8 +29,20 @@ const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 // Get config
 router.get("/", authMiddleware, (req, res) => {
-  const config = db.prepare("SELECT * FROM bot_configs WHERE user_id = ?").get(req.userId);
-  if (!config) return res.status(404).json({ error: "Config not found" });
+  let config = db.prepare("SELECT * FROM bot_configs WHERE user_id = ?").get(req.userId);
+
+  // Auto-create if missing (user created before bot_configs was set up)
+  if (!config) {
+    db.prepare("INSERT INTO bot_configs (user_id, bot_name) VALUES (?, ?)").run(req.userId, "AI Assistant");
+    config = db.prepare("SELECT * FROM bot_configs WHERE user_id = ?").get(req.userId);
+  }
+
+  // Also ensure bot_session exists
+  const session = db.prepare("SELECT id FROM bot_sessions WHERE user_id = ?").get(req.userId);
+  if (!session) {
+    db.prepare("INSERT INTO bot_sessions (user_id) VALUES (?)").run(req.userId);
+  }
+
   const qrPath = path.join(getDataRoot(), `uploads/${req.userId}/payment-qr.jpg`);
   res.json({ ...config, has_payment_qr: fs.existsSync(qrPath) });
 });
