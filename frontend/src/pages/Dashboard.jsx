@@ -113,34 +113,62 @@ export default function Dashboard() {
   async function handleQrUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
-    e.target.value = ""; // reset input so same file can be re-selected
-    // Type check
+    e.target.value = "";
+
+    // 1. Type check
     const allowed = ["image/jpeg","image/jpg","image/png","image/webp"];
     if (!allowed.includes(file.type)) {
       showToast("Hanya PNG, JPG atau WEBP dibenarkan","error"); return;
     }
-    // Size check (max 5MB)
+    // 2. Size check
     if (file.size > 5*1024*1024) {
       showToast("Saiz fail terlalu besar. Maksimum 5MB","error"); return;
     }
-    // Validate it actually loads as an image
+
+    // 3. Validate image loads + detect QR code using canvas
+    showToast("Mengesahkan QR code...","info");
     try {
-      await new Promise((resolve, reject) => {
+      const hasQR = await new Promise((resolve, reject) => {
         const img = new Image();
         const url = URL.createObjectURL(file);
-        img.onload = () => { URL.revokeObjectURL(url); resolve(); };
-        img.onerror = () => { URL.revokeObjectURL(url); reject(); };
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          try {
+            // Draw to canvas and scan for QR
+            const canvas = document.createElement("canvas");
+            canvas.width  = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            // Use jsQR if available, otherwise just accept the image
+            if (window.jsQR) {
+              const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+              resolve(!!code);
+            } else {
+              resolve(true); // jsQR not loaded, skip QR check
+            }
+          } catch { resolve(true); }
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Fail tidak sah")); };
         img.src = url;
       });
-    } catch {
-      showToast("Fail tidak sah. Sila upload imej QR yang betul","error"); return;
+
+      if (!hasQR) {
+        showToast("⚠️ QR code tidak dijumpai dalam imej ini. Sila upload imej QR yang betul.","error");
+        return;
+      }
+    } catch(err) {
+      showToast(err.message || "Fail imej tidak sah","error"); return;
     }
+
+    // 4. Upload
     try {
       showToast("Memuat naik QR...","info");
       await uploadFile("/config/upload-qr","paymentQr",file);
       setQrTs(Date.now());
       await fetchConfig();
-      showToast("QR berjaya dimuat naik! ✅");
+      showToast("✅ QR berjaya dimuat naik!");
     } catch(err) { showToast(err.message,"error"); }
   }
 
@@ -214,6 +242,10 @@ export default function Dashboard() {
           <LogOut size={15} />
           Log Keluar
         </button>
+        <div style={{ padding:"8px 12px 4px", fontSize:11, color:"#71717a", display:"flex", justifyContent:"space-between" }}>
+          <span>JomReply.ai</span>
+          <span style={{ background:"rgba(34,197,94,.15)", color:"#4ade80", borderRadius:4, padding:"1px 6px", fontWeight:600 }}>v1.0.0</span>
+        </div>
       </div>
     </div>
   );

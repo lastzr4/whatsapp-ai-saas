@@ -120,7 +120,16 @@ router.get("/payment-qr-image", authMiddleware, (req, res) => {
   const mimeTypes = { ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".png":"image/png", ".webp":"image/webp" };
   res.setHeader("Content-Type", mimeTypes[ext] || "image/jpeg");
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  res.sendFile(qrPath);
+  res.setHeader("Pragma", "no-cache");
+  // sendFile requires absolute path
+  const absPath = path.resolve(qrPath);
+  console.log(`📤 Serving QR for user ${req.userId}: ${absPath}`);
+  res.sendFile(absPath, (err) => {
+    if (err) {
+      console.error(`❌ QR serve error: ${err.message}`);
+      res.status(500).json({ error: "Gagal serve imej" });
+    }
+  });
 });
 
 // ── Upload knowledge .txt ─────────────────────────────────────────────────────

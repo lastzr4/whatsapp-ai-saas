@@ -471,6 +471,10 @@ export default function Admin() {
 
       <div className="sidebar-footer">
         <button className="nav-item" onClick={logout}><LogOut size={15}/> Log Keluar</button>
+        <div style={{ padding:"8px 12px 4px", fontSize:11, color:"#71717a", display:"flex", justifyContent:"space-between" }}>
+          <span>JomReply.ai</span>
+          <span style={{ background:"rgba(99,102,241,.15)", color:"#a5b4fc", borderRadius:4, padding:"1px 6px", fontWeight:600 }}>v1.0.0</span>
+        </div>
       </div>
     </div>
   );
