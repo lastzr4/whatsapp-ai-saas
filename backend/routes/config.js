@@ -80,7 +80,27 @@ router.get("/", authMiddleware, (req, res) => {
   }
   const session = db.prepare("SELECT id FROM bot_sessions WHERE user_id = ?").get(req.userId);
   if (!session) db.prepare("INSERT INTO bot_sessions (user_id) VALUES (?)").run(req.userId);
-  res.json({ ...config, has_payment_qr: !!getQrPath(req.userId) });
+
+  // Get user plan limits
+  const user = db.prepare("SELECT plan, max_messages, max_logs, max_numbers FROM users WHERE id = ?").get(req.userId);
+
+  // Count messages this month
+  const msgThisMonth = db.prepare(`
+    SELECT COUNT(*) as c FROM message_logs
+    WHERE user_id = ? AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
+  `).get(req.userId).c;
+
+  res.json({
+    ...config,
+    has_payment_qr: !!getQrPath(req.userId),
+    // Usage stats for user dashboard
+    plan: user?.plan || "basic",
+    max_messages: user?.max_messages || 50,
+    max_logs: user?.max_logs || 5,
+    max_numbers: user?.max_numbers || 1,
+    msg_this_month: msgThisMonth,
+    msg_remaining: Math.max(0, (user?.max_messages || 50) - msgThisMonth),
+  });
 });
 
 // ── PUT config ────────────────────────────────────────────────────────────────
@@ -150,9 +170,11 @@ router.post("/upload-knowledge", authMiddleware, (req, res, next) => {
 
 // ── Logs ──────────────────────────────────────────────────────────────────────
 router.get("/logs", authMiddleware, (req, res) => {
+  const user = db.prepare("SELECT max_logs FROM users WHERE id = ?").get(req.userId);
+  const limit = user?.max_logs || 5;
   const logs = db.prepare(
-    "SELECT * FROM message_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 100"
-  ).all(req.userId);
+    "SELECT * FROM message_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?"
+  ).all(req.userId, limit);
   res.json(logs);
 });
 

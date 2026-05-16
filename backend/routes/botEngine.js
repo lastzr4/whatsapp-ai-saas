@@ -144,19 +144,21 @@ export async function startBot(userId) {
   console.log(`🚀 Starting bot for user ${userId}...`);
   updateSessionStatus(userId, "starting");
 
-  fs.mkdirSync(path.join(__dirname, `../sessions/user_${userId}`), { recursive: true });
+  const dataRoot = process.env.DATA_ROOT || path.join(__dirname, "../..");
+  fs.mkdirSync(path.join(dataRoot, `sessions/user_${userId}`), { recursive: true });
 
   const client = new Client({
     authStrategy: new LocalAuth({
       clientId: `user_${userId}`,
-      dataPath: path.join(__dirname, "../sessions"),
+      dataPath: path.join(dataRoot, "sessions"),
     }),
     puppeteer: {
       headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",   // prevents crashes on low-memory
+        "--disable-dev-shm-usage",
         "--disable-gpu",
         "--no-zygote",
       ],
@@ -245,17 +247,51 @@ export async function startBot(userId) {
       // Show typing indicator (non-critical — ignore errors)
       await safeSend(() => chat.sendStateTyping());
 
+      // ── Check monthly message limit ────────────────────────────────────────
+      const user = db.prepare("SELECT max_messages, plan, is_active FROM users WHERE id = ?").get(userId);
+      if (!user?.is_active) {
+        console.log(`⛔ User ${userId} account suspended, ignoring message`);
+        return;
+      }
+      const msgThisMonth = db.prepare(`
+        SELECT COUNT(*) as c FROM message_logs
+        WHERE user_id = ? AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
+      `).get(userId).c;
+      const maxMsg = user?.max_messages || 50;
+      if (msgThisMonth >= maxMsg) {
+        console.log(`⚠️ User ${userId} reached monthly limit (${msgThisMonth}/${maxMsg}), ignoring message`);
+        await safeSend(() => message.reply(
+          `⚠️ Had mesej bulanan anda (${maxMsg} mesej) telah dicapai. Sila naik taraf plan anda untuk terus menggunakan bot.`
+        ));
+        return;
+      }
+
       // ── Payment QR ────────────────────────────────────────────────────────
+      // If it's a payment query AND we have a QR image, send it and stop.
+      // Don't call Claude — avoids contradictory replies.
       if (isPaymentQuery(userText)) {
-        const qrImagePath = path.join(__dirname, `../uploads/${userId}/payment-qr.jpg`);
-        if (fs.existsSync(qrImagePath)) {
+        // Find QR file with any extension
+        const uploadsDir = path.join(process.env.DATA_PATH || process.env.DATA_ROOT || path.join(__dirname, "../.."), `uploads/${userId}`);
+        let qrImagePath = null;
+        for (const ext of [".jpg",".jpeg",".png",".webp"]) {
+          const p = path.join(uploadsDir, `payment-qr${ext}`);
+          if (fs.existsSync(p)) { qrImagePath = p; break; }
+        }
+        if (qrImagePath) {
           await safeSend(async () => {
             const media   = MessageMedia.fromFilePath(qrImagePath);
             const caption = config.payment_caption || "Ini QR code untuk pembayaran 😊";
             await chat.sendMessage(media, { caption });
             console.log(`💳 Payment QR sent for user ${userId}`);
           });
+          // Log and stop — no Claude reply needed
+          try {
+            db.prepare("INSERT INTO message_logs (user_id, sender, message, reply) VALUES (?, ?, ?, ?)")
+              .run(userId, senderNumber, userText, "[QR Pembayaran dihantar]");
+          } catch {}
+          return; // ← stop here, don't call Claude
         }
+        // No QR image uploaded yet — let Claude handle it normally
       }
 
       // ── AI reply ──────────────────────────────────────────────────────────

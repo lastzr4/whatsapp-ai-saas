@@ -104,9 +104,11 @@ export function initDb() {
 
   const migrations = [
     { name: "users_is_admin",       sql: "ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0" },
-    { name: "users_max_messages",   sql: "ALTER TABLE users ADD COLUMN max_messages INTEGER DEFAULT 1000" },
+    { name: "users_max_messages",   sql: "ALTER TABLE users ADD COLUMN max_messages INTEGER DEFAULT 50" },
     { name: "users_notes",          sql: "ALTER TABLE users ADD COLUMN notes TEXT DEFAULT ''" },
     { name: "users_is_verified",    sql: "ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 0" },
+    { name: "users_max_logs",       sql: "ALTER TABLE users ADD COLUMN max_logs INTEGER DEFAULT 5" },
+    { name: "users_max_numbers",    sql: "ALTER TABLE users ADD COLUMN max_numbers INTEGER DEFAULT 1" },
     { name: "tokens_table", sql: `CREATE TABLE IF NOT EXISTS auth_tokens (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -126,6 +128,20 @@ export function initDb() {
       last_active TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     )` },
+    { name: "plan_limits_table", sql: `CREATE TABLE IF NOT EXISTS plan_limits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plan TEXT UNIQUE NOT NULL,
+      max_messages INTEGER NOT NULL DEFAULT 50,
+      max_logs INTEGER NOT NULL DEFAULT 5,
+      max_numbers INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT DEFAULT (datetime('now'))
+    )` },
+    { name: "plan_limits_seed", sql: `INSERT OR IGNORE INTO plan_limits (plan, max_messages, max_logs, max_numbers) VALUES
+      ('basic',   50,   5,   1),
+      ('starter', 500,  50,  3),
+      ('pro',     1000, 100, 5)
+    ` },
+    { name: "rename_max_messages_default", sql: "UPDATE users SET max_messages = 50 WHERE max_messages = 1000 AND plan = 'basic'" },
   ];
 
   for (const m of migrations) {

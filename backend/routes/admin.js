@@ -80,16 +80,42 @@ router.get("/tenants/:id", (req, res) => {
 
 // ── Update Tenant ────────────────────────────────────────────────────────────
 router.put("/tenants/:id", (req, res) => {
-  const { name, email, plan, is_active, max_messages, notes } = req.body;
+  const { name, email, plan, is_active, max_messages, max_logs, max_numbers, notes } = req.body;
   try {
+    // If plan changed, auto-apply plan limits (unless manually overridden)
+    const planLimits = db.prepare("SELECT * FROM plan_limits WHERE plan = ?").get(plan || "basic");
+    const finalMaxMsg     = max_messages ?? planLimits?.max_messages ?? 50;
+    const finalMaxLogs    = max_logs     ?? planLimits?.max_logs     ?? 5;
+    const finalMaxNumbers = max_numbers  ?? planLimits?.max_numbers  ?? 1;
+
     db.prepare(`
-      UPDATE users SET name = ?, email = ?, plan = ?, is_active = ?, max_messages = ?, notes = ?
+      UPDATE users SET name = ?, email = ?, plan = ?, is_active = ?,
+        max_messages = ?, max_logs = ?, max_numbers = ?, notes = ?
       WHERE id = ? AND is_admin = 0
-    `).run(name, email, plan || "basic", is_active ? 1 : 0, max_messages || 1000, notes || "", req.params.id);
+    `).run(name, email, plan || "basic", is_active ? 1 : 0,
+      finalMaxMsg, finalMaxLogs, finalMaxNumbers, notes || "", req.params.id);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
+});
+
+// ── Plan Limits (admin configurable) ─────────────────────────────────────────
+router.get("/plan-limits", (req, res) => {
+  const limits = db.prepare("SELECT * FROM plan_limits ORDER BY id").all();
+  res.json(limits);
+});
+
+router.put("/plan-limits/:plan", (req, res) => {
+  const { max_messages, max_logs, max_numbers } = req.body;
+  const { plan } = req.params;
+  if (!["basic","starter","pro"].includes(plan))
+    return res.status(400).json({ error: "Invalid plan" });
+  db.prepare(`
+    UPDATE plan_limits SET max_messages = ?, max_logs = ?, max_numbers = ?, updated_at = datetime('now')
+    WHERE plan = ?
+  `).run(max_messages, max_logs, max_numbers, plan);
+  res.json({ success: true });
 });
 
 // ── Reset Tenant Password ────────────────────────────────────────────────────

@@ -8,7 +8,15 @@ import {
 } from "lucide-react";
 import { api } from "../lib/api.js";
 
-const PLANS = ["basic","pro","enterprise"];
+const PLANS = ["basic","starter","pro"];
+const PLAN_LABELS = { basic:"Basic", starter:"Starter", pro:"Pro" };
+
+// Default limits (overridden by DB)
+const PLAN_DEFAULTS = {
+  basic:   { max_messages:50,   max_logs:5,  max_numbers:1 },
+  starter: { max_messages:500,  max_logs:50, max_numbers:3 },
+  pro:     { max_messages:1000, max_logs:100,max_numbers:5 },
+};
 
 // ── Shared ───────────────────────────────────────────────────────────────────
 function Toast({ text, type, onDone }) {
@@ -30,8 +38,9 @@ function BotBadge({ status }) {
 }
 
 function PlanBadge({ plan }) {
-  const map = { basic:"badge-gray", pro:"badge-amber", enterprise:"badge-green" };
-  return <span className={`badge ${map[plan]||"badge-gray"}`}>{plan?.charAt(0).toUpperCase()+plan?.slice(1)}</span>;
+  const map = { basic:"badge-gray", starter:"badge-amber", pro:"badge-green" };
+  const labels = { basic:"Basic", starter:"Starter", pro:"Pro" };
+  return <span className={`badge ${map[plan]||"badge-gray"}`}>{labels[plan]||plan}</span>;
 }
 
 // ── DB Viewer ─────────────────────────────────────────────────────────────────
@@ -265,7 +274,16 @@ function DbViewer({ showToast }) {
 // ── Tenant Modal ───────────────────────────────────────────────────────────────
 function TenantModal({ tenant, onClose, onSave, showToast }) {
   const [modalTab, setModalTab] = useState(0);
-  const [form, setForm]   = useState({ name:tenant.name, email:tenant.email, plan:tenant.plan||"basic", is_active:!!tenant.is_active, max_messages:tenant.max_messages||1000, notes:tenant.notes||"" });
+  const [form, setForm]   = useState({
+    name:tenant.name,
+    email:tenant.email,
+    plan:tenant.plan||"basic",
+    is_active:!!tenant.is_active,
+    max_messages:tenant.max_messages || PLAN_DEFAULTS[tenant.plan||"basic"].max_messages,
+    max_logs:tenant.max_logs || PLAN_DEFAULTS[tenant.plan||"basic"].max_logs,
+    max_numbers:tenant.max_numbers || PLAN_DEFAULTS[tenant.plan||"basic"].max_numbers,
+    notes:tenant.notes||""
+  });
   const [newPw, setNewPw] = useState("");
   const [saving, setSaving] = useState(false);
   const [logs, setLogs]   = useState([]);
@@ -330,18 +348,40 @@ function TenantModal({ tenant, onClose, onSave, showToast }) {
               </div>
               <div className="grid-2">
                 <div><label className="form-label">Plan</label>
-                  <select className="input" value={form.plan} onChange={e=>setForm({...form,plan:e.target.value})}>
-                    {PLANS.map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
+                  <select className="input" value={form.plan} onChange={e=>{
+                    const p = e.target.value;
+                    const defaults = PLAN_DEFAULTS[p];
+                    setForm(f=>({ ...f, plan:p, max_messages:defaults.max_messages, max_logs:defaults.max_logs, max_numbers:defaults.max_numbers }));
+                  }}>
+                    {PLANS.map(p=><option key={p} value={p}>{PLAN_LABELS[p]}</option>)}
                   </select>
                 </div>
-                <div><label className="form-label">Had Mesej / Bulan</label><input className="input" type="number" value={form.max_messages} onChange={e=>setForm({...form,max_messages:parseInt(e.target.value)})} /></div>
+                <div><label className="form-label">Status</label>
+                  <div style={{ display:"flex",alignItems:"center",gap:10,background:"var(--muted-bg)",borderRadius:8,padding:"11px 13px",border:"1px solid var(--border)",height:42 }}>
+                    <label className="switch" style={{ margin:0 }}>
+                      <input type="checkbox" checked={form.is_active} onChange={e=>setForm({...form,is_active:e.target.checked})} />
+                      <span className="switch-track" />
+                    </label>
+                    <span style={{ fontSize:13,fontWeight:500 }}>{form.is_active?"Aktif":"Digantung"}</span>
+                  </div>
+                </div>
               </div>
-              <div style={{ display:"flex",alignItems:"center",gap:10,background:"var(--muted-bg)",borderRadius:10,padding:"12px 14px",border:"1px solid var(--border)" }}>
-                <label className="switch" style={{ margin:0 }}>
-                  <input type="checkbox" checked={form.is_active} onChange={e=>setForm({...form,is_active:e.target.checked})} />
-                  <span className="switch-track" />
-                </label>
-                <div style={{ fontWeight:600,fontSize:13 }}>Akaun Aktif</div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+                <div>
+                  <label className="form-label">💬 Had Mesej</label>
+                  <input className="input" type="number" min="1" value={form.max_messages}
+                    onChange={e=>setForm({...form,max_messages:parseInt(e.target.value)||1})} />
+                </div>
+                <div>
+                  <label className="form-label">📋 Had Log</label>
+                  <input className="input" type="number" min="1" value={form.max_logs}
+                    onChange={e=>setForm({...form,max_logs:parseInt(e.target.value)||1})} />
+                </div>
+                <div>
+                  <label className="form-label">📱 Had Nombor</label>
+                  <input className="input" type="number" min="1" value={form.max_numbers}
+                    onChange={e=>setForm({...form,max_numbers:parseInt(e.target.value)||1})} />
+                </div>
               </div>
               <div><label className="form-label">Nota Admin</label><textarea className="input" style={{ minHeight:80,fontFamily:"inherit",fontSize:13 }} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Nota peribadi tentang tenant ini..." /></div>
               <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
@@ -390,12 +430,96 @@ function TenantModal({ tenant, onClose, onSave, showToast }) {
   );
 }
 
+// ── Plan Config Component ─────────────────────────────────────────────────────
+function PlanConfig({ showToast }) {
+  const [limits, setLimits]   = useState(null);
+  const [saving, setSaving]   = useState({});
+  const [local, setLocal]     = useState({});
+
+  async function load() {
+    try {
+      const data = await api("GET","/admin/plan-limits");
+      const map = {};
+      data.forEach(p => { map[p.plan] = { max_messages:p.max_messages, max_logs:p.max_logs, max_numbers:p.max_numbers }; });
+      setLimits(map);
+      setLocal(JSON.parse(JSON.stringify(map)));
+    } catch(e) { showToast(e.message,"error"); }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function save(plan) {
+    setSaving(s=>({...s,[plan]:true}));
+    try {
+      await api("PUT",`/admin/plan-limits/${plan}`, local[plan]);
+      showToast(`✅ Had plan ${PLAN_LABELS[plan]} dikemaskini!`);
+      load();
+    } catch(e) { showToast(e.message,"error"); }
+    setSaving(s=>({...s,[plan]:false}));
+  }
+
+  if (!limits) return <div style={{ textAlign:"center",padding:48 }}><div className="spinner" style={{ margin:"0 auto" }} /></div>;
+
+  const planColors = { basic:"#71717a", starter:"#f59e0b", pro:"#22c55e" };
+
+  return (
+    <div style={{ maxWidth:800, margin:"0 auto", display:"flex", flexDirection:"column", gap:16 }}>
+      <div className="card" style={{ padding:"16px 20px", background:"rgba(59,130,246,.04)", borderColor:"rgba(59,130,246,.2)" }}>
+        <div style={{ fontWeight:600, fontSize:13.5, color:"#1d4ed8" }}>
+          ℹ️ Perubahan had plan di sini hanya akan affect user <strong>baru</strong> atau bila plan user ditukar. User sedia ada tidak terkesan melainkan plan mereka dikemaskini semula.
+        </div>
+      </div>
+
+      {PLANS.map(plan => {
+        const lims = local[plan] || PLAN_DEFAULTS[plan];
+        const color = planColors[plan];
+        return (
+          <div key={plan} className="card" style={{ padding:"20px 22px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+              <div style={{ width:10, height:10, borderRadius:"50%", background:color, flexShrink:0 }} />
+              <div style={{ fontWeight:700, fontSize:16 }}>{PLAN_LABELS[plan]}</div>
+              <PlanBadge plan={plan} />
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:16, marginBottom:20 }}>
+              <div>
+                <label className="form-label">💬 Had Mesej / Bulan</label>
+                <input className="input" type="number" min="1" max="999999"
+                  value={lims.max_messages}
+                  onChange={e=>setLocal(l=>({...l,[plan]:{...l[plan],max_messages:parseInt(e.target.value)||1}}))} />
+                <p style={{ fontSize:11.5, color:"var(--muted)", marginTop:4 }}>Bot berhenti balas bila had dicapai</p>
+              </div>
+              <div>
+                <label className="form-label">📋 Had Log Mesej</label>
+                <input className="input" type="number" min="1" max="9999"
+                  value={lims.max_logs}
+                  onChange={e=>setLocal(l=>({...l,[plan]:{...l[plan],max_logs:parseInt(e.target.value)||1}}))} />
+                <p style={{ fontSize:11.5, color:"var(--muted)", marginTop:4 }}>Jumlah log terkini boleh dilihat</p>
+              </div>
+              <div>
+                <label className="form-label">📱 Had Nombor WhatsApp</label>
+                <input className="input" type="number" min="1" max="99"
+                  value={lims.max_numbers}
+                  onChange={e=>setLocal(l=>({...l,[plan]:{...l[plan],max_numbers:parseInt(e.target.value)||1}}))} />
+                <p style={{ fontSize:11.5, color:"var(--muted)", marginTop:4 }}>Nombor WA boleh disambung</p>
+              </div>
+            </div>
+            <button className="btn btn-default btn-sm" onClick={()=>save(plan)} disabled={saving[plan]}>
+              {saving[plan]?<><span className="spinner spinner-white" style={{ width:13,height:13 }}/> Menyimpan...</>:`💾 Simpan Had ${PLAN_LABELS[plan]}`}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main Admin ────────────────────────────────────────────────────────────────
 const ADMIN_NAV = [
   { id:0, icon:LayoutDashboard, label:"Overview" },
   { id:1, icon:Users,           label:"Tenants" },
   { id:2, icon:ScrollText,      label:"Semua Log" },
   { id:3, icon:Database,        label:"Database" },
+  { id:4, icon:ShieldCheck,     label:"Plan Config" },
 ];
 
 export default function Admin() {
@@ -654,6 +778,9 @@ export default function Admin() {
 
           {/* ── Database ── */}
           {tab===3 && <DbViewer showToast={showToast} />}
+
+          {/* ── Plan Config ── */}
+          {tab===4 && <PlanConfig showToast={showToast} />}
 
         </div>
       </main>
