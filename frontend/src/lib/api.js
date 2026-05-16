@@ -1,3 +1,5 @@
+// In production, frontend is served from the same domain as backend
+// so we just use relative /api paths — works both locally (via Vite proxy) and in production
 const BASE = "/api";
 
 function headers() {
@@ -15,7 +17,15 @@ export async function api(method, path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Request failed");
+  if (!res.ok) {
+    // Session expired — clear storage and redirect to login
+    if (res.status === 401) {
+      localStorage.clear();
+      window.location.href = "/login";
+      throw new Error(data.error || "Sesi tamat");
+    }
+    throw new Error(data.error || "Request failed");
+  }
   return data;
 }
 
@@ -29,6 +39,13 @@ export async function uploadFile(path, fieldName, file) {
     body: form,
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Upload failed");
+  if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.clear();
+      window.location.href = "/login";
+      throw new Error(data.error || "Sesi tamat");
+    }
+    throw new Error(data.error || "Upload failed");
+  }
   return data;
 }

@@ -9,22 +9,33 @@ export function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.userId;
 
-    // If token has sessionToken, validate it exists in DB (session isolation)
+    // Session isolation — only validate if token contains a sessionToken
     if (decoded.sessionToken) {
-      const session = db.prepare(
-        "SELECT id FROM login_sessions WHERE session_token = ? AND user_id = ?"
-      ).get(decoded.sessionToken, decoded.userId);
+      try {
+        const session = db.prepare(
+          "SELECT id FROM login_sessions WHERE session_token = ? AND user_id = ?"
+        ).get(decoded.sessionToken, decoded.userId);
 
-      if (!session) {
-        return res.status(401).json({ error: "Session tamat. Sila log masuk semula." });
+        if (!session) {
+          // Session deleted (logout from another tab, admin force logout, or volume reset)
+          return res.status(401).json({
+            error: "Sesi tamat. Sila log masuk semula.",
+            code: "SESSION_EXPIRED"
+          });
+        }
+
+        // Update last active timestamp
+        db.prepare(
+          "UPDATE login_sessions SET last_active = datetime('now') WHERE id = ?"
+        ).run(session.id);
+      } catch (dbErr) {
+        // login_sessions table may not exist yet (old DB) — allow through
+        console.warn("Session check skipped:", dbErr.message);
       }
-
-      // Update last active
-      db.prepare("UPDATE login_sessions SET last_active = datetime('now') WHERE id = ?").run(session.id);
     }
 
     next();
   } catch {
-    res.status(401).json({ error: "Invalid token" });
+    res.status(401).json({ error: "Token tidak sah" });
   }
 }

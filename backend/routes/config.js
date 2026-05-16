@@ -9,10 +9,14 @@ import { authMiddleware } from "../middleware/auth.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
 
-// Multer for file uploads
+function getDataRoot() {
+  return process.env.DATA_PATH || process.env.DATA_ROOT || path.join(__dirname, "../..");
+}
+
+// Multer — save uploads to persistent volume
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(__dirname, `../uploads/${req.userId}`);
+    const dir = path.join(getDataRoot(), `uploads/${req.userId}`);
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -25,13 +29,9 @@ const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 // Get config
 router.get("/", authMiddleware, (req, res) => {
-  const config = db
-    .prepare("SELECT * FROM bot_configs WHERE user_id = ?")
-    .get(req.userId);
+  const config = db.prepare("SELECT * FROM bot_configs WHERE user_id = ?").get(req.userId);
   if (!config) return res.status(404).json({ error: "Config not found" });
-
-  // Check if payment QR exists
-  const qrPath = path.join(__dirname, `../uploads/${req.userId}/payment-qr.jpg`);
+  const qrPath = path.join(getDataRoot(), `uploads/${req.userId}/payment-qr.jpg`);
   res.json({ ...config, has_payment_qr: fs.existsSync(qrPath) });
 });
 
@@ -57,31 +57,29 @@ router.put("/", authMiddleware, (req, res) => {
 // Upload payment QR image
 router.post("/upload-qr", authMiddleware, upload.single("paymentQr"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  res.json({ success: true, path: req.file.path });
+  res.json({ success: true });
 });
 
 // Upload knowledge.txt
 router.post("/upload-knowledge", authMiddleware, upload.single("knowledge"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
   const content = fs.readFileSync(req.file.path, "utf-8");
-  db.prepare("UPDATE bot_configs SET knowledge = ? WHERE user_id = ?").run(
-    content, req.userId
-  );
-  fs.unlinkSync(req.file.path); // clean up temp file
+  db.prepare("UPDATE bot_configs SET knowledge = ? WHERE user_id = ?").run(content, req.userId);
+  fs.unlinkSync(req.file.path);
   res.json({ success: true, characters: content.length });
 });
 
 // Get message logs
 router.get("/logs", authMiddleware, (req, res) => {
-  const logs = db
-    .prepare("SELECT * FROM message_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 50")
-    .all(req.userId);
+  const logs = db.prepare(
+    "SELECT * FROM message_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 50"
+  ).all(req.userId);
   res.json(logs);
 });
 
-// Delete selected logs by IDs
+// Delete selected logs
 router.delete("/logs", authMiddleware, (req, res) => {
-  const { ids } = req.body; // array of log IDs
+  const { ids } = req.body;
   if (!ids || !ids.length) return res.status(400).json({ error: "No IDs provided" });
   const placeholders = ids.map(() => "?").join(",");
   db.prepare(`DELETE FROM message_logs WHERE id IN (${placeholders}) AND user_id = ?`)
@@ -89,7 +87,7 @@ router.delete("/logs", authMiddleware, (req, res) => {
   res.json({ success: true, deleted: ids.length });
 });
 
-// Delete ALL logs for this user
+// Delete all logs
 router.delete("/logs/all", authMiddleware, (req, res) => {
   const result = db.prepare("DELETE FROM message_logs WHERE user_id = ?").run(req.userId);
   res.json({ success: true, deleted: result.changes });
@@ -97,7 +95,7 @@ router.delete("/logs/all", authMiddleware, (req, res) => {
 
 // Serve payment QR image
 router.get("/payment-qr-image", authMiddleware, (req, res) => {
-  const qrPath = path.join(__dirname, `../uploads/${req.userId}/payment-qr.jpg`);
+  const qrPath = path.join(getDataRoot(), `uploads/${req.userId}/payment-qr.jpg`);
   if (!fs.existsSync(qrPath)) return res.status(404).json({ error: "Not found" });
   res.sendFile(qrPath);
 });
