@@ -1,26 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bot, Mail, Lock, Eye, EyeOff, User as UserIcon, AlertCircle } from "lucide-react";
 import { api } from "../lib/api.js";
 
-const GOOGLE_CLIENT_ID = window.__ENV__?.GOOGLE_CLIENT_ID || "";
+function getGoogleClientId() {
+  return window.__ENV__?.GOOGLE_CLIENT_ID || "";
+}
 
-function GoogleBtn({ label, onSuccess }) {
+function GoogleDivider() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const check = () => { if (getGoogleClientId()) { setShow(true); return; } setTimeout(check, 100); };
+    check();
+  }, []);
+  if (!show) return null;
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:10, margin:"18px 0" }}>
+      <div style={{ flex:1, height:1, background:"var(--border)" }} />
+      <span style={{ fontSize:12, color:"var(--muted)", fontWeight:500 }}>atau daftar dengan email</span>
+      <div style={{ flex:1, height:1, background:"var(--border)" }} />
+    </div>
+  );
+}
   const [loading, setLoading] = useState(false);
+  const [clientId, setClientId] = useState("");
+
+  useEffect(() => {
+    // Wait for __ENV__ to be ready
+    const check = () => {
+      const id = getGoogleClientId();
+      if (id) { setClientId(id); return; }
+      setTimeout(check, 100);
+    };
+    check();
+  }, []);
+
+  if (!clientId) return null;
 
   function handleClick() {
-    if (!GOOGLE_CLIENT_ID) return alert("Google login belum dikonfigurasi.");
     if (!window.google) {
       const s = document.createElement("script");
       s.src = "https://accounts.google.com/gsi/client";
       s.async = true;
-      s.onload = () => initAndPrompt();
+      s.onload = () => initAndPrompt(clientId);
       document.head.appendChild(s);
-    } else { initAndPrompt(); }
+    } else { initAndPrompt(clientId); }
 
-    function initAndPrompt() {
+    function initAndPrompt(id) {
       window.google?.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
+        client_id: id,
         callback: async ({ credential }) => {
           setLoading(true);
           try {
@@ -123,14 +151,8 @@ export default function Register() {
           <p style={{ fontSize:13, color:"var(--muted)", marginBottom:20 }}>Mulakan bot WhatsApp AI anda hari ini</p>
 
           {/* Google Sign Up */}
-          {GOOGLE_CLIENT_ID && <GoogleBtn label="Daftar dengan Google" onSuccess={handleSuccess} />}
-          {GOOGLE_CLIENT_ID && (
-            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"18px 0" }}>
-              <div style={{ flex:1, height:1, background:"var(--border)" }} />
-              <span style={{ fontSize:12, color:"var(--muted)", fontWeight:500 }}>atau daftar dengan email</span>
-              <div style={{ flex:1, height:1, background:"var(--border)" }} />
-            </div>
-          )}
+          <GoogleBtn label="Daftar dengan Google" onSuccess={handleSuccess} />
+          <GoogleDivider />
 
           {error && (
             <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(239,68,68,.08)", border:"1px solid rgba(239,68,68,.2)", borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:13.5, color:"#dc2626" }}>

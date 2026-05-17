@@ -3,7 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Bot, Mail, Lock, Eye, EyeOff, ArrowLeft, Send, RefreshCw, AlertCircle } from "lucide-react";
 import { api } from "../lib/api.js";
 
-const GOOGLE_CLIENT_ID = window.__ENV__?.GOOGLE_CLIENT_ID || "";
+function getGoogleClientId() {
+  return window.__ENV__?.GOOGLE_CLIENT_ID || "";
+}
 
 function AuthCard({ children }) {
   return (
@@ -28,35 +30,35 @@ function AuthCard({ children }) {
 
 function GoogleBtn({ label, onSuccess }) {
   const [loading, setLoading] = useState(false);
+  const [clientId, setClientId] = useState("");
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return;
-    if (window.google) initGoogle();
-    else {
-      const s = document.createElement("script");
-      s.src = "https://accounts.google.com/gsi/client";
-      s.async = true;
-      s.onload = initGoogle;
-      document.head.appendChild(s);
-    }
-    function initGoogle() {
+    const check = () => { const id = getGoogleClientId(); if (id) { setClientId(id); return; } setTimeout(check, 100); };
+    check();
+  }, []);
+
+  if (!clientId) return null;
+
+  function handleClick() {
+    if (window.google) { init(clientId); return; }
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.onload = () => init(clientId);
+    document.head.appendChild(s);
+
+    function init(id) {
       window.google?.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
+        client_id: id,
         callback: async ({ credential }) => {
           setLoading(true);
-          try {
-            const data = await api("POST", "/auth/google", { credential });
-            onSuccess(data);
-          } catch(e) { alert(e.message); }
+          try { const data = await api("POST","/auth/google",{ credential }); onSuccess(data); }
+          catch(e) { alert(e.message); }
           setLoading(false);
         },
       });
+      window.google?.accounts.id.prompt();
     }
-  }, []);
-
-  function handleClick() {
-    if (!GOOGLE_CLIENT_ID) return alert("Google login belum dikonfigurasi.");
-    window.google?.accounts.id.prompt();
   }
 
   return (
@@ -73,6 +75,12 @@ function GoogleBtn({ label, onSuccess }) {
 }
 
 function Divider() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const check = () => { if (getGoogleClientId()) { setShow(true); return; } setTimeout(check, 100); };
+    check();
+  }, []);
+  if (!show) return null;
   return (
     <div style={{ display:"flex", alignItems:"center", gap:10, margin:"18px 0" }}>
       <div style={{ flex:1, height:1, background:"var(--border)" }} />
@@ -132,8 +140,8 @@ export default function Login() {
         <h2 style={{ fontWeight:700, fontSize:19, marginBottom:4 }}>Log Masuk</h2>
         <p style={{ fontSize:13, color:"var(--muted)", marginBottom:20 }}>Selamat kembali!</p>
 
-        {GOOGLE_CLIENT_ID && <GoogleBtn label="Teruskan dengan Google" onSuccess={handleLoginSuccess} />}
-        {GOOGLE_CLIENT_ID && <Divider />}
+        <GoogleBtn label="Teruskan dengan Google" onSuccess={handleLoginSuccess} />
+        <Divider />
 
         {error && (
           <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(239,68,68,.08)", border:"1px solid rgba(239,68,68,.2)", borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:13.5, color:"#dc2626" }}>
