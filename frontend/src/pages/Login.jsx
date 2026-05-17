@@ -3,70 +3,46 @@ import { Link, useNavigate } from "react-router-dom";
 import { Bot, Mail, Lock, Eye, EyeOff, ArrowLeft, Send, RefreshCw, AlertCircle } from "lucide-react";
 import { api } from "../lib/api.js";
 
-function getGoogleClientId() {
-  return window.__ENV__?.GOOGLE_CLIENT_ID || "";
-}
-
-function AuthCard({ children }) {
-  return (
-    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:20, background:"#f4f4f5" }}>
-      <div style={{ width:"100%", maxWidth:400 }}>
-        <div style={{ textAlign:"center", marginBottom:28 }}>
-          <Link to="/" style={{ textDecoration:"none" }}>
-            <div style={{ width:52, height:52, borderRadius:14, background:"linear-gradient(135deg,#22c55e,#16a34a)", display:"inline-flex", alignItems:"center", justifyContent:"center", marginBottom:14, boxShadow:"0 6px 20px rgba(34,197,94,.3)" }}>
-              <Bot size={26} color="#fff" />
-            </div>
-            <div style={{ fontWeight:800, fontSize:20, color:"#0f172a", marginBottom:3 }}>JomReply<span style={{ color:"#22c55e" }}>.ai</span></div>
-          </Link>
-          <p style={{ fontSize:13, color:"var(--muted)" }}>Bot WhatsApp AI Platform</p>
-        </div>
-        <div className="card" style={{ padding:28 }}>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
+function getGID() { return window.__ENV__?.GOOGLE_CLIENT_ID || ""; }
 
 function GoogleBtn({ label, onSuccess }) {
   const [loading, setLoading] = useState(false);
-  const [clientId, setClientId] = useState("");
+  const [gid, setGid] = useState("");
 
   useEffect(() => {
-    const check = () => { const id = getGoogleClientId(); if (id) { setClientId(id); return; } setTimeout(check, 100); };
-    check();
+    let t; function check() { const id=getGID(); if(id){setGid(id);}else{t=setTimeout(check,150);} }
+    check(); return ()=>clearTimeout(t);
   }, []);
 
-  if (!clientId) return null;
+  if (!gid) return null;
 
   function handleClick() {
-    if (window.google) { init(clientId); return; }
-    const s = document.createElement("script");
-    s.src = "https://accounts.google.com/gsi/client";
-    s.async = true;
-    s.onload = () => init(clientId);
-    document.head.appendChild(s);
-
-    function init(id) {
-      window.google?.accounts.id.initialize({
-        client_id: id,
-        callback: async ({ credential }) => {
+    function init() {
+      window.google.accounts.id.initialize({
+        client_id: gid,
+        callback: async ({credential}) => {
           setLoading(true);
-          try { const data = await api("POST","/auth/google",{ credential }); onSuccess(data); }
+          try { const d=await api("POST","/auth/google",{credential}); onSuccess(d); }
           catch(e) { alert(e.message); }
           setLoading(false);
         },
       });
-      window.google?.accounts.id.prompt();
+      window.google.accounts.id.prompt();
     }
+    if (window.google) { init(); return; }
+    const s=document.createElement("script");
+    s.src="https://accounts.google.com/gsi/client";
+    s.onload=init;
+    document.head.appendChild(s);
   }
 
   return (
     <button type="button" onClick={handleClick} disabled={loading}
-      style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"10px 16px", borderRadius:10, border:"1.5px solid var(--border)", background:"#fff", cursor:"pointer", fontSize:14, fontWeight:600, color:"#374151", transition:"all .15s" }}
+      style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"10px 16px",borderRadius:10,border:"1.5px solid var(--border)",background:"#fff",cursor:"pointer",fontSize:14,fontWeight:600,color:"#374151",transition:"all .15s" }}
       onMouseEnter={e=>e.currentTarget.style.background="#f9fafb"}
       onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-      {loading ? <span className="spinner" style={{ width:18,height:18,borderColor:"rgba(0,0,0,.1)",borderTopColor:"#374151" }} />
+      {loading
+        ? <span className="spinner" style={{ width:18,height:18,borderColor:"rgba(0,0,0,.1)",borderTopColor:"#374151" }} />
         : <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       }
       {label}
@@ -77,31 +53,50 @@ function GoogleBtn({ label, onSuccess }) {
 function Divider() {
   const [show, setShow] = useState(false);
   useEffect(() => {
-    const check = () => { if (getGoogleClientId()) { setShow(true); return; } setTimeout(check, 100); };
-    check();
+    let t; function check() { if(getGID()){setShow(true);}else{t=setTimeout(check,150);} }
+    check(); return ()=>clearTimeout(t);
   }, []);
   if (!show) return null;
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:10, margin:"18px 0" }}>
-      <div style={{ flex:1, height:1, background:"var(--border)" }} />
-      <span style={{ fontSize:12, color:"var(--muted)", fontWeight:500 }}>atau</span>
-      <div style={{ flex:1, height:1, background:"var(--border)" }} />
+    <div style={{ display:"flex",alignItems:"center",gap:10,margin:"18px 0" }}>
+      <div style={{ flex:1,height:1,background:"var(--border)" }} />
+      <span style={{ fontSize:12,color:"var(--muted)",fontWeight:500 }}>atau</span>
+      <div style={{ flex:1,height:1,background:"var(--border)" }} />
+    </div>
+  );
+}
+
+function AuthCard({ children }) {
+  return (
+    <div style={{ minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,background:"#f4f4f5" }}>
+      <div style={{ width:"100%",maxWidth:400 }}>
+        <div style={{ textAlign:"center",marginBottom:28 }}>
+          <Link to="/" style={{ textDecoration:"none" }}>
+            <div style={{ width:52,height:52,borderRadius:14,background:"linear-gradient(135deg,#22c55e,#16a34a)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:14,boxShadow:"0 6px 20px rgba(34,197,94,.3)" }}>
+              <Bot size={26} color="#fff" />
+            </div>
+            <div style={{ fontWeight:800,fontSize:20,color:"#0f172a",marginBottom:3 }}>JomReply<span style={{ color:"#22c55e" }}>.ai</span></div>
+          </Link>
+          <p style={{ fontSize:13,color:"var(--muted)" }}>Bot WhatsApp AI Platform</p>
+        </div>
+        <div className="card" style={{ padding:28 }}>{children}</div>
+      </div>
     </div>
   );
 }
 
 export default function Login() {
-  const [form, setForm]         = useState({ email:"", password:"" });
-  const [showPw, setShowPw]     = useState(false);
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [view, setView]         = useState("login");
-  const [forgotEmail, setForgotEmail] = useState("");
+  const [form, setForm]       = useState({ email:"", password:"" });
+  const [showPw, setShowPw]   = useState(false);
+  const [error, setError]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [view, setView]       = useState("login");
+  const [forgotEmail, setForgotEmail]   = useState("");
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
   const [resending, setResending] = useState(false);
   const navigate = useNavigate();
 
-  function handleLoginSuccess(data) {
+  function handleSuccess(data) {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify({ name:data.name, email:data.email, is_admin:data.is_admin }));
     navigate(data.is_admin ? "/admin" : "/dashboard");
@@ -109,14 +104,13 @@ export default function Login() {
 
   async function handleLogin(e) {
     e.preventDefault(); setLoading(true); setError("");
-    try {
-      const data = await api("POST","/auth/login",form);
-      handleLoginSuccess(data);
-    } catch(err) {
-      if (err.message?.includes("sahkan email") || err.message?.includes("requiresVerification")) {
+    try { const data=await api("POST","/auth/login",form); handleSuccess(data); }
+    catch(err) {
+      if (err.message?.includes("sahkan") || err.message?.includes("requiresVerification")) {
         setUnverifiedEmail(form.email); setView("verify_notice");
       } else { setError(err.message); }
-    } finally { setLoading(false); }
+    }
+    finally { setLoading(false); }
   }
 
   async function handleForgot(e) {
@@ -126,120 +120,124 @@ export default function Login() {
     finally { setLoading(false); }
   }
 
-  async function resendVerification() {
+  async function resend() {
     setResending(true);
     try { await api("POST","/auth/resend-verification",{ email:unverifiedEmail }); alert("Email dihantar semula!"); }
     catch(err) { alert(err.message); }
     finally { setResending(false); }
   }
 
+  function ErrorBox({ msg }) {
+    if (!msg) return null;
+    return (
+      <div style={{ display:"flex",alignItems:"center",gap:8,background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.2)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13.5,color:"#dc2626" }}>
+        <AlertCircle size={15} /> {msg}
+      </div>
+    );
+  }
+
   return (
     <AuthCard>
       {/* ── Login ── */}
       {view==="login" && <>
-        <h2 style={{ fontWeight:700, fontSize:19, marginBottom:4 }}>Log Masuk</h2>
-        <p style={{ fontSize:13, color:"var(--muted)", marginBottom:20 }}>Selamat kembali!</p>
-
-        <GoogleBtn label="Teruskan dengan Google" onSuccess={handleLoginSuccess} />
+        <h2 style={{ fontWeight:700,fontSize:19,marginBottom:4 }}>Log Masuk</h2>
+        <p style={{ fontSize:13,color:"var(--muted)",marginBottom:20 }}>Selamat kembali!</p>
+        <GoogleBtn label="Teruskan dengan Google" onSuccess={handleSuccess} />
         <Divider />
-
-        {error && (
-          <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(239,68,68,.08)", border:"1px solid rgba(239,68,68,.2)", borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:13.5, color:"#dc2626" }}>
-            <AlertCircle size={15} /> {error}
-          </div>
-        )}
-        <form onSubmit={handleLogin} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+        <ErrorBox msg={error} />
+        <form onSubmit={handleLogin} style={{ display:"flex",flexDirection:"column",gap:14 }}>
           <div>
             <label className="form-label">Email</label>
             <div style={{ position:"relative" }}>
-              <Mail size={15} style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"var(--muted)" }} />
+              <Mail size={15} style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:"var(--muted)" }} />
               <input className="input" type="email" placeholder="email@example.com" autoComplete="email"
                 style={{ paddingLeft:38 }} value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required />
             </div>
           </div>
           <div>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6 }}>
               <label className="form-label" style={{ margin:0 }}>Kata Laluan</label>
               <button type="button" onClick={()=>{ setForgotEmail(form.email); setView("forgot"); setError(""); }}
-                style={{ background:"none", border:"none", color:"var(--green)", fontSize:12.5, cursor:"pointer", fontWeight:500 }}>
+                style={{ background:"none",border:"none",color:"var(--green)",fontSize:12.5,cursor:"pointer",fontWeight:500 }}>
                 Lupa kata laluan?
               </button>
             </div>
             <div style={{ position:"relative" }}>
-              <Lock size={15} style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"var(--muted)" }} />
+              <Lock size={15} style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:"var(--muted)" }} />
               <input className="input" type={showPw?"text":"password"} placeholder="••••••••" autoComplete="current-password"
-                style={{ paddingLeft:38, paddingRight:42 }} value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required />
-              <button type="button" onClick={()=>setShowPw(!showPw)}
-                style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"var(--muted)", display:"flex" }}>
-                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                style={{ paddingLeft:38,paddingRight:42 }} value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required />
+              <button type="button" onClick={()=>setShowPw(p=>!p)}
+                style={{ position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--muted)",display:"flex" }}>
+                {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
               </button>
             </div>
           </div>
-          <button className="btn btn-default btn-lg" type="submit" disabled={loading} style={{ width:"100%", marginTop:4 }}>
-            {loading ? <><span className="spinner spinner-white" style={{ width:16,height:16 }} /> Memproses...</> : "Log Masuk →"}
+          <button className="btn btn-default btn-lg" type="submit" disabled={loading} style={{ width:"100%",marginTop:4 }}>
+            {loading ? <><span className="spinner spinner-white" style={{ width:16,height:16 }}/> Memproses...</> : "Log Masuk →"}
           </button>
         </form>
-        <p style={{ textAlign:"center", marginTop:18, fontSize:13, color:"var(--muted)" }}>
-          Belum ada akaun?{" "}<Link to="/register" style={{ color:"var(--green-dark)", fontWeight:600, textDecoration:"none" }}>Daftar sekarang</Link>
+        <p style={{ textAlign:"center",marginTop:18,fontSize:13,color:"var(--muted)" }}>
+          Belum ada akaun?{" "}<Link to="/register" style={{ color:"var(--green-dark)",fontWeight:600,textDecoration:"none" }}>Daftar sekarang</Link>
         </p>
       </>}
 
       {/* ── Forgot ── */}
       {view==="forgot" && <>
         <button onClick={()=>{ setView("login"); setError(""); }}
-          style={{ display:"flex", alignItems:"center", gap:5, background:"none", border:"none", color:"var(--muted)", cursor:"pointer", fontSize:13, marginBottom:18, padding:0 }}>
-          <ArrowLeft size={14} /> Kembali
+          style={{ display:"flex",alignItems:"center",gap:5,background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:13,marginBottom:18,padding:0 }}>
+          <ArrowLeft size={14}/> Kembali
         </button>
-        <h2 style={{ fontWeight:700, fontSize:19, marginBottom:4 }}>Lupa Kata Laluan?</h2>
-        <p style={{ fontSize:13, color:"var(--muted)", marginBottom:20 }}>Masukkan email untuk reset kata laluan.</p>
-        {error && <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(239,68,68,.08)", border:"1px solid rgba(239,68,68,.2)", borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:13.5, color:"#dc2626" }}><AlertCircle size={15} /> {error}</div>}
-        <form onSubmit={handleForgot} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+        <h2 style={{ fontWeight:700,fontSize:19,marginBottom:4 }}>Lupa Kata Laluan?</h2>
+        <p style={{ fontSize:13,color:"var(--muted)",marginBottom:20 }}>Masukkan email untuk reset kata laluan.</p>
+        <ErrorBox msg={error} />
+        <form onSubmit={handleForgot} style={{ display:"flex",flexDirection:"column",gap:14 }}>
           <div>
             <label className="form-label">Email</label>
             <div style={{ position:"relative" }}>
-              <Mail size={15} style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"var(--muted)" }} />
-              <input className="input" type="email" placeholder="email@example.com" style={{ paddingLeft:38 }} value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} required />
+              <Mail size={15} style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:"var(--muted)" }} />
+              <input className="input" type="email" placeholder="email@example.com" style={{ paddingLeft:38 }}
+                value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} required />
             </div>
           </div>
           <button className="btn btn-default btn-lg" type="submit" disabled={loading} style={{ width:"100%" }}>
-            {loading ? <><span className="spinner spinner-white" style={{ width:16,height:16 }} /> Menghantar...</> : <><Send size={15} /> Hantar Link Reset</>}
+            {loading ? <><span className="spinner spinner-white" style={{ width:16,height:16 }}/> Menghantar...</> : <><Send size={15}/> Hantar Link Reset</>}
           </button>
         </form>
       </>}
 
       {/* ── Forgot Sent ── */}
       {view==="forgot_sent" && (
-        <div style={{ textAlign:"center", padding:"8px 0" }}>
-          <div style={{ width:56, height:56, borderRadius:14, background:"var(--green-bg)", border:"1px solid var(--green-border)", display:"inline-flex", alignItems:"center", justifyContent:"center", marginBottom:16 }}>
+        <div style={{ textAlign:"center",padding:"8px 0" }}>
+          <div style={{ width:56,height:56,borderRadius:14,background:"var(--green-bg)",border:"1px solid var(--green-border)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:16 }}>
             <Mail size={26} style={{ color:"var(--green-dark)" }} />
           </div>
-          <h2 style={{ fontWeight:700, fontSize:18, marginBottom:8 }}>Email Dihantar!</h2>
-          <p style={{ fontSize:13.5, color:"var(--muted)", lineHeight:1.6, marginBottom:22 }}>
-            Link reset dihantar ke <strong style={{ color:"var(--text)" }}>{forgotEmail}</strong>.<br/>Sah selama 1 jam.
+          <h2 style={{ fontWeight:700,fontSize:18,marginBottom:8 }}>Email Dihantar!</h2>
+          <p style={{ fontSize:13.5,color:"var(--muted)",lineHeight:1.6,marginBottom:22 }}>
+            Link reset dihantar ke <strong style={{ color:"var(--text)" }}>{forgotEmail}</strong>.<br/>Sah 1 jam. Semak folder spam jika tidak jumpa.
           </p>
           <button onClick={()=>{ setView("login"); setError(""); }} className="btn btn-secondary" style={{ width:"100%" }}>
-            <ArrowLeft size={14} /> Kembali ke Login
+            <ArrowLeft size={14}/> Kembali ke Login
           </button>
         </div>
       )}
 
       {/* ── Verify Notice ── */}
       {view==="verify_notice" && (
-        <div style={{ textAlign:"center", padding:"8px 0" }}>
-          <div style={{ width:56, height:56, borderRadius:14, background:"rgba(59,130,246,.08)", border:"1px solid rgba(59,130,246,.2)", display:"inline-flex", alignItems:"center", justifyContent:"center", marginBottom:16 }}>
+        <div style={{ textAlign:"center",padding:"8px 0" }}>
+          <div style={{ width:56,height:56,borderRadius:14,background:"rgba(59,130,246,.08)",border:"1px solid rgba(59,130,246,.2)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:16 }}>
             <Mail size={26} style={{ color:"#3b82f6" }} />
           </div>
-          <h2 style={{ fontWeight:700, fontSize:18, marginBottom:8 }}>Sahkan Email Anda</h2>
-          <p style={{ fontSize:13.5, color:"var(--muted)", lineHeight:1.6, marginBottom:20 }}>
+          <h2 style={{ fontWeight:700,fontSize:18,marginBottom:8 }}>Sahkan Email Anda</h2>
+          <p style={{ fontSize:13.5,color:"var(--muted)",lineHeight:1.6,marginBottom:20 }}>
             Link pengesahan dihantar ke <strong style={{ color:"var(--text)" }}>{unverifiedEmail}</strong>.<br/>
             Sila semak inbox atau folder spam.
           </p>
-          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            <button onClick={resendVerification} disabled={resending} className="btn btn-outline" style={{ width:"100%" }}>
-              {resending ? <><span className="spinner" style={{ width:14,height:14 }} /> Menghantar...</> : <><RefreshCw size={14} /> Hantar Semula Email</>}
+          <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+            <button onClick={resend} disabled={resending} className="btn btn-outline" style={{ width:"100%" }}>
+              {resending ? <><span className="spinner" style={{ width:14,height:14 }}/> Menghantar...</> : <><RefreshCw size={14}/> Hantar Semula Email</>}
             </button>
-            <button onClick={()=>{ setView("login"); setError(""); }} className="btn btn-ghost" style={{ width:"100%", fontSize:13 }}>
-              <ArrowLeft size={13} /> Kembali ke Login
+            <button onClick={()=>{ setView("login"); setError(""); }} className="btn btn-ghost" style={{ width:"100%",fontSize:13 }}>
+              <ArrowLeft size={13}/> Kembali ke Login
             </button>
           </div>
         </div>
