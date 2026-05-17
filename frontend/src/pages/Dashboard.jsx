@@ -111,7 +111,10 @@ export default function Dashboard() {
   const [qrTs, setQrTs]                 = useState(Date.now());
   const [toast, setToast]               = useState(null);
   const [saving, setSaving]             = useState(false);
-  const pollRef = useRef(null);
+  const pollRef          = useRef(null);
+  const startingTimerRef = useRef(null);
+  const prevStatusRef    = useRef(null);
+  const [startingSeconds, setStartingSeconds] = useState(0);
 
   const showToast = (text, type="success") => setToast({ text, type });
 
@@ -121,43 +124,33 @@ export default function Dashboard() {
     try {
       const c = await api("GET","/config");
       setConfig(c);
-    } catch(e) {
-      setConfigError(e.message);
-    }
+    } catch(e) { setConfigError(e.message); }
     setConfigLoading(false);
   }
-  async function fetchLogs()   { try { setLogs(await api("GET","/config/logs")); } catch {} }
+  async function fetchLogs() { try { setLogs(await api("GET","/config/logs")); } catch {} }
 
   useEffect(() => {
     fetchStatus(); fetchConfig();
     pollRef.current = setInterval(fetchStatus, 3000);
     return () => clearInterval(pollRef.current);
   }, []);
-  const startingTimerRef = useRef(null);
-  const [startingSeconds, setStartingSeconds] = useState(0);
 
-  // Track how long bot has been "starting" — timeout after 45s
   useEffect(() => {
     if (status.status === "starting") {
       setStartingSeconds(0);
-      startingTimerRef.current = setInterval(() => {
-        setStartingSeconds(s => s + 1);
-      }, 1000);
+      startingTimerRef.current = setInterval(() => setStartingSeconds(s => s + 1), 1000);
     } else {
       clearInterval(startingTimerRef.current);
       setStartingSeconds(0);
     }
     return () => clearInterval(startingTimerRef.current);
   }, [status.status]);
+
   useEffect(() => {
     const prev = prevStatusRef.current;
-    // Redirect to Sambungan tab when QR becomes ready or bot connects
     if (prev !== null && prev !== status.status) {
-      if (status.status === "qr_pending" || status.status === "connected") {
-        setTab(0);
-        if (status.status === "qr_pending") showToast("QR sedia! Sila imbas sekarang 📱","info");
-        if (status.status === "connected")   showToast("WhatsApp Bersambung! 🎉");
-      }
+      if (status.status === "qr_pending") { setTab(0); showToast("QR sedia! Sila imbas sekarang 📱","info"); }
+      if (status.status === "connected")  { setTab(0); showToast("WhatsApp Bersambung! 🎉"); }
     }
     prevStatusRef.current = status.status;
   }, [status.status]);
