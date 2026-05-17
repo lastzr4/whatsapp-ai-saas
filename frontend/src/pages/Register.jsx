@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bot, Mail, Lock, Eye, EyeOff, User as UserIcon, AlertCircle } from "lucide-react";
 import { api } from "../lib/api.js";
@@ -7,13 +7,7 @@ function getGID() { return window.__ENV__?.GOOGLE_CLIENT_ID || ""; }
 
 function GoogleBtn({ label, onSuccess }) {
   const [loading, setLoading] = useState(false);
-  const [gid, setGid] = useState("");
-
-  useEffect(() => {
-    let t; function check() { const id=getGID(); if(id){setGid(id);}else{t=setTimeout(check,150);} }
-    check(); return ()=>clearTimeout(t);
-  }, []);
-
+  const gid = getGID();
   if (!gid) return null;
 
   function handleClick() {
@@ -51,12 +45,7 @@ function GoogleBtn({ label, onSuccess }) {
 }
 
 function GoogleDivider() {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    let t; function check() { if(getGID()){setShow(true);}else{t=setTimeout(check,150);} }
-    check(); return ()=>clearTimeout(t);
-  }, []);
-  if (!show) return null;
+  if (!getGID()) return null;
   return (
     <div style={{ display:"flex",alignItems:"center",gap:10,margin:"18px 0" }}>
       <div style={{ flex:1,height:1,background:"var(--border)" }} />

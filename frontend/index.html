@@ -6,10 +6,10 @@
     <meta name="theme-color" content="#0f172a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>JomReply.ai</title>
+    <!-- Runtime env config — MUST load before React (blocking) -->
+    <script src="/api/config/env.js"></script>
     <!-- jsQR for QR code detection -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
-    <!-- Runtime env config — set by backend -->
-    <script defer src="/api/config/env.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js" defer></script>
   </head>
   <body>
     <div id="root"></div>

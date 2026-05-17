@@ -9,4 +9,10 @@ export default defineConfig({
       "/api": "http://localhost:3001",
     },
   },
+  build: {
+    // Don't warn about external scripts in index.html
+    rollupOptions: {
+      external: [],
+    },
+  },
 });
