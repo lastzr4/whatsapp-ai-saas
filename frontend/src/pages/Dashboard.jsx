@@ -44,6 +44,36 @@ function PlanBadge({ plan }) {
   return <span className={`badge ${map[plan]||"badge-gray"}`} style={{ fontSize:10.5 }}>{labels[plan]||plan}</span>;
 }
 
+// Animated QR countdown — counts 60s, resets when QR refreshes
+function QrCountdown() {
+  const [secs, setSecs] = useState(60);
+  useEffect(() => {
+    setSecs(60);
+    const t = setInterval(() => setSecs(s => s <= 1 ? 60 : s - 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const pct = secs / 60;
+  const r = 16, circ = 2 * Math.PI * r;
+  const color = secs > 20 ? "#22c55e" : secs > 10 ? "#f59e0b" : "#ef4444";
+  return (
+    <div style={{ display:"inline-flex",alignItems:"center",gap:8,background:"var(--muted-bg)",border:"1px solid var(--border)",borderRadius:99,padding:"5px 12px 5px 8px",fontSize:12,fontWeight:600,color }}>
+      <svg width={36} height={36} style={{ transform:"rotate(-90deg)" }}>
+        <circle cx={18} cy={18} r={r} fill="none" stroke="var(--border)" strokeWidth={2.5} />
+        <circle cx={18} cy={18} r={r} fill="none" stroke={color} strokeWidth={2.5}
+          strokeDasharray={circ}
+          strokeDashoffset={circ * (1 - pct)}
+          strokeLinecap="round"
+          style={{ transition:"stroke-dashoffset 1s linear, stroke .3s" }} />
+        <text x={18} y={18} textAnchor="middle" dominantBaseline="middle"
+          style={{ fill:color, fontSize:10, fontWeight:700, transform:"rotate(90deg)", transformOrigin:"18px 18px" }}>
+          {secs}
+        </text>
+      </svg>
+      ⏱ QR tamat dalam {secs} saat
+    </div>
+  );
+}
+
 function StatusBadge({ status }) {
   const c = statusColor(status);
   const cls = c==="green"?"badge-green":c==="amber"?"badge-amber":c==="red"?"badge-red":"badge-gray";
@@ -105,9 +135,13 @@ export default function Dashboard() {
   }, []);
   useEffect(() => { if (tab===4) fetchLogs(); }, [tab]);
 
-  const startBot   = async () => { await api("POST","/bot/start");   showToast("Bot sedang dihidupkan...","info"); };
+  const startBot = async () => {
+    await api("POST","/bot/start");
+    setTab(0); // redirect to connection tab to show QR
+    showToast("Bot sedang dihidupkan...","info");
+  };
   const stopBot    = async () => { await api("POST","/bot/stop");    showToast("Bot dihentikan","error"); };
-  const restartBot = async () => { await api("POST","/bot/restart"); showToast("Bot dimulakan semula...","info"); };
+  const restartBot = async () => { await api("POST","/bot/restart"); setTab(0); showToast("Bot dimulakan semula...","info"); };
 
   async function saveConfig() {
     setSaving(true);
@@ -132,7 +166,6 @@ export default function Dashboard() {
     }
 
     // 3. Validate image loads + detect QR code using canvas
-    showToast("Mengesahkan QR code...","info");
     try {
       const hasQR = await new Promise((resolve, reject) => {
         const img = new Image();
@@ -170,11 +203,10 @@ export default function Dashboard() {
 
     // 4. Upload
     try {
-      showToast("Memuat naik QR...","info");
       await uploadFile("/config/upload-qr","paymentQr",file);
       setQrTs(Date.now());
       await fetchConfig();
-      showToast("✅ QR berjaya dimuat naik!");
+      showToast("QR berjaya dimuat naik! ✅");
     } catch(err) { showToast(err.message,"error"); }
   }
 
@@ -365,22 +397,27 @@ export default function Dashboard() {
                     </div>
                     <h2 style={{ fontWeight:800,fontSize:19,marginBottom:6 }}>Imbas Kod QR WhatsApp</h2>
                     <p style={{ color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6 }}>
-                      Buka WhatsApp → Ketik <strong>⋮</strong> → <strong>Peranti Terpaut</strong> → <strong>+ Tautkan Peranti</strong>
+                      Buka WhatsApp → Tekan <strong>⋮</strong> → <strong>Peranti Terpaut</strong> → <strong>+ Tautkan Peranti</strong>
                     </p>
-                    <div style={{ position:"relative",display:"inline-block",marginBottom:16 }}>
+                    <div style={{ position:"relative",display:"inline-block",marginBottom:20 }}>
                       <div style={{ padding:14,background:"#fff",borderRadius:18,border:"3px solid #22c55e",boxShadow:"0 8px 32px rgba(34,197,94,.2)",display:"inline-block" }}>
                         <img src={status.qr_code} alt="QR WhatsApp" style={{ width:220,height:220,display:"block" }} />
                       </div>
+                      {/* Animated countdown ring */}
+                      <div style={{ position:"absolute",bottom:-16,left:"50%",transform:"translateX(-50%)",whiteSpace:"nowrap" }}>
+                        <QrCountdown />
+                      </div>
                     </div>
-                    <p style={{ fontSize:12,color:"var(--muted)",marginBottom:16 }}>⏱ QR tamat dalam ~60 saat</p>
-                    <a href={status.qr_code} download="jomreply-qr.png"
-                      style={{ display:"inline-flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:10,background:"var(--muted-bg)",border:"1px solid var(--border)",fontSize:13,fontWeight:600,color:"var(--text)",textDecoration:"none" }}>
-                      <Download size={15} /> Muat Turun QR untuk Scan dari Telefon
-                    </a>
+                    <div style={{ marginTop:24 }}>
+                      <a href={status.qr_code} download="jomreply-qr.png"
+                        style={{ display:"inline-flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:10,background:"var(--muted-bg)",border:"1px solid var(--border)",fontSize:13,fontWeight:600,color:"var(--text)",textDecoration:"none" }}>
+                        <Download size={15} /> Muat Turun QR untuk Scan dari Telefon
+                      </a>
+                    </div>
                   </div>
                   <div className="card" style={{ padding:"16px 20px" }}>
                     <div style={{ fontWeight:700,fontSize:13,marginBottom:12 }}>📱 Cara imbas dari telefon:</div>
-                    {[["1","Buka WhatsApp di telefon anda"],["2","Ketik ikon ⋮ → Peranti Terpaut"],["3","Ketik + Tautkan Peranti"],["4","Imbas QR di atas"]].map(([n,t])=>(
+                    {[["1","Buka WhatsApp di telefon anda"],["2","Tekan ikon ⋮ → Peranti Terpaut"],["3","Tekan + Tautkan Peranti"],["4","Imbas QR di atas"]].map(([n,t])=>(
                       <div key={n} style={{ display:"flex",alignItems:"center",gap:12,padding:"8px 0",borderBottom:n!=="4"?"1px solid var(--border)":"none" }}>
                         <div style={{ width:24,height:24,borderRadius:99,background:"var(--green)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0 }}>{n}</div>
                         <div style={{ fontSize:13 }}>{t}</div>
