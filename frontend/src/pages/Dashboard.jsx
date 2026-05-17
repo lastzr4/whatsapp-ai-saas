@@ -4,7 +4,7 @@ import {
   Plug, Settings, BookOpen, CreditCard, ScrollText,
   Bot, LogOut, Play, RotateCw, Square, Upload, Trash2,
   RefreshCw, Smartphone, CheckCircle2, Camera, MessageSquare,
-  User as UserIcon, AlertCircle,
+  User as UserIcon, AlertCircle, Download,
 } from "lucide-react";
 import { api, uploadFile } from "../lib/api.js";
 
@@ -317,57 +317,181 @@ export default function Dashboard() {
 
           {/* ── Tab 0: Connection ── */}
           {tab===0 && (
-            <div style={{ maxWidth:640,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
+            <div style={{ maxWidth:640,margin:"0 auto" }}>
+
+              {/* CONNECTED */}
               {status.status==="connected" && (
-                <div className="card" style={{ padding:"36px 24px",textAlign:"center" }}>
-                  <div style={{ width:68,height:68,borderRadius:18,background:"linear-gradient(135deg,#22c55e,#16a34a)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:16,boxShadow:"0 8px 24px rgba(34,197,94,.3)" }}>
-                    <CheckCircle2 size={32} color="#fff" />
+                <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+                  <div className="card" style={{ padding:"28px 24px",textAlign:"center" }}>
+                    <div style={{ width:72,height:72,borderRadius:20,background:"linear-gradient(135deg,#22c55e,#16a34a)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:16,boxShadow:"0 12px 32px rgba(34,197,94,.35)" }}>
+                      <CheckCircle2 size={36} color="#fff" />
+                    </div>
+                    <h2 style={{ fontWeight:900,fontSize:22,marginBottom:6 }}>WhatsApp Bersambung! 🎉</h2>
+                    <p style={{ color:"var(--muted)",fontSize:15,marginBottom:4,fontWeight:600 }}>📱 +{status.phone_number}</p>
+                    <p style={{ color:"var(--muted)",fontSize:13,marginBottom:24 }}>Bot sedang aktif & menjawab pelanggan secara automatik</p>
+                    <div className="btn-row" style={{ justifyContent:"center" }}>
+                      <button className="btn btn-secondary" onClick={restartBot}><RotateCw size={15} /> Restart</button>
+                      <button className="btn btn-destructive" onClick={stopBot}><Square size={15} /> Hentikan Bot</button>
+                    </div>
                   </div>
-                  <h2 style={{ fontWeight:800,fontSize:20,marginBottom:6 }}>WhatsApp Bersambung!</h2>
-                  <p style={{ color:"var(--muted)",fontSize:14,marginBottom:4 }}>📱 +{status.phone_number}</p>
-                  <p style={{ color:"var(--muted)",fontSize:13,marginBottom:24 }}>Bot aktif & menjawab mesej automatik</p>
-                  <div className="btn-row" style={{ justifyContent:"center" }}>
-                    <button className="btn btn-secondary" onClick={restartBot}><RotateCw size={15} /> Restart</button>
-                    <button className="btn btn-destructive" onClick={stopBot}><Square size={15} /> Hentikan</button>
+                  <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12 }}>
+                    <button className="card" style={{ padding:16,textAlign:"left",cursor:"pointer",border:"1px solid var(--border)",background:"var(--surface)",transition:"all .15s" }}
+                      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,.08)";e.currentTarget.style.transform="translateY(-1px)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="none";}}
+                      onClick={()=>setTab(2)}>
+                      <BookOpen size={22} style={{ color:"var(--green)",marginBottom:8 }} />
+                      <div style={{ fontWeight:700,fontSize:13,marginBottom:3 }}>Kemaskini Knowledge</div>
+                      <div style={{ fontSize:12,color:"var(--muted)" }}>Tambah info produk & FAQ</div>
+                    </button>
+                    <button className="card" style={{ padding:16,textAlign:"left",cursor:"pointer",border:"1px solid var(--border)",background:"var(--surface)",transition:"all .15s" }}
+                      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,.08)";e.currentTarget.style.transform="translateY(-1px)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="none";}}
+                      onClick={()=>setTab(4)}>
+                      <ScrollText size={22} style={{ color:"#3b82f6",marginBottom:8 }} />
+                      <div style={{ fontWeight:700,fontSize:13,marginBottom:3 }}>Lihat Log Mesej</div>
+                      <div style={{ fontSize:12,color:"var(--muted)" }}>Semak perbualan terkini</div>
+                    </button>
                   </div>
                 </div>
               )}
+
+              {/* QR PENDING */}
               {status.status==="qr_pending" && status.qr_code && (
-                <div className="card" style={{ padding:"28px 24px",textAlign:"center" }}>
-                  <h2 style={{ fontWeight:800,fontSize:18,marginBottom:6 }}>Imbas Kod QR</h2>
-                  <p style={{ color:"var(--muted)",fontSize:13,marginBottom:22 }}>WhatsApp → <b>Peranti Terpaut</b> → <b>Tautkan Peranti</b></p>
-                  <div style={{ display:"inline-block",padding:12,background:"#fff",borderRadius:16,border:"2px solid var(--border)",boxShadow:"0 4px 20px rgba(0,0,0,.08)" }}>
-                    <img src={status.qr_code} alt="QR" style={{ width:200,height:200,display:"block" }} />
-                  </div>
-                  <p style={{ marginTop:14,fontSize:12,color:"var(--muted)" }}>⏱ Tamat dalam ~60 saat</p>
-                </div>
-              )}
-              {status.status==="starting" && (
-                <div className="card" style={{ padding:"48px 24px",textAlign:"center" }}>
-                  <div className="spinner" style={{ margin:"0 auto 16px" }} />
-                  <h2 style={{ fontWeight:700,fontSize:17,marginBottom:8 }}>Sedang Memulakan...</h2>
-                  <p style={{ color:"var(--muted)",fontSize:13 }}>Kod QR akan muncul sebentar lagi</p>
-                </div>
-              )}
-              {(status.status==="disconnected"||status.status==="auth_failed") && !status.is_running && (
-                <div className="card" style={{ padding:"48px 24px",textAlign:"center" }}>
-                  <Smartphone size={52} style={{ margin:"0 auto 16px",color:"#d4d4d8" }} />
-                  <h2 style={{ fontWeight:800,fontSize:20,marginBottom:8 }}>Bot Belum Aktif</h2>
-                  <p style={{ color:"var(--muted)",fontSize:14,marginBottom:24 }}>Klik butang di bawah untuk hidupkan bot</p>
-                  <button className="btn btn-primary btn-lg" onClick={startBot}><Play size={16} /> Hidupkan Bot</button>
-                </div>
-              )}
-              {status.status!=="connected" && (
-                <div className="steps-grid">
-                  {[["1","Hidupkan Bot","Klik butang Hidupkan Bot"],["2","Imbas QR","Scan dengan WhatsApp anda"],["3","Bot Aktif!","Mula menjawab 24/7"]].map(([n,t,d])=>(
-                    <div key={n} className="card" style={{ display:"flex",alignItems:"center",gap:12,padding:16 }}>
-                      <div style={{ width:36,height:36,borderRadius:99,background:"rgba(34,197,94,.1)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,color:"var(--green)",flexShrink:0,fontSize:15 }}>{n}</div>
-                      <div style={{ minWidth:0 }}>
-                        <div style={{ fontWeight:700,fontSize:13 }}>{t}</div>
-                        <div style={{ fontSize:12,color:"var(--muted)",marginTop:2 }}>{d}</div>
+                <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+                  <div className="card" style={{ padding:"24px",textAlign:"center" }}>
+                    <div style={{ display:"inline-flex",alignItems:"center",gap:8,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.3)",borderRadius:99,padding:"6px 14px",fontSize:13,fontWeight:600,color:"#b45309",marginBottom:20 }}>
+                      <span style={{ width:7,height:7,borderRadius:"50%",background:"#f59e0b",display:"inline-block" }} />
+                      Menunggu imbasan QR
+                    </div>
+                    <h2 style={{ fontWeight:800,fontSize:19,marginBottom:6 }}>Imbas Kod QR WhatsApp</h2>
+                    <p style={{ color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6 }}>
+                      Buka WhatsApp → Ketik <strong>⋮</strong> → <strong>Peranti Terpaut</strong> → <strong>+ Tautkan Peranti</strong>
+                    </p>
+                    <div style={{ position:"relative",display:"inline-block",marginBottom:16 }}>
+                      <div style={{ padding:14,background:"#fff",borderRadius:18,border:"3px solid #22c55e",boxShadow:"0 8px 32px rgba(34,197,94,.2)",display:"inline-block" }}>
+                        <img src={status.qr_code} alt="QR WhatsApp" style={{ width:220,height:220,display:"block" }} />
                       </div>
                     </div>
-                  ))}
+                    <p style={{ fontSize:12,color:"var(--muted)",marginBottom:16 }}>⏱ QR tamat dalam ~60 saat</p>
+                    <a href={status.qr_code} download="jomreply-qr.png"
+                      style={{ display:"inline-flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:10,background:"var(--muted-bg)",border:"1px solid var(--border)",fontSize:13,fontWeight:600,color:"var(--text)",textDecoration:"none" }}>
+                      <Download size={15} /> Muat Turun QR untuk Scan dari Telefon
+                    </a>
+                  </div>
+                  <div className="card" style={{ padding:"16px 20px" }}>
+                    <div style={{ fontWeight:700,fontSize:13,marginBottom:12 }}>📱 Cara imbas dari telefon:</div>
+                    {[["1","Buka WhatsApp di telefon anda"],["2","Ketik ikon ⋮ → Peranti Terpaut"],["3","Ketik + Tautkan Peranti"],["4","Imbas QR di atas"]].map(([n,t])=>(
+                      <div key={n} style={{ display:"flex",alignItems:"center",gap:12,padding:"8px 0",borderBottom:n!=="4"?"1px solid var(--border)":"none" }}>
+                        <div style={{ width:24,height:24,borderRadius:99,background:"var(--green)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0 }}>{n}</div>
+                        <div style={{ fontSize:13 }}>{t}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* STARTING */}
+              {status.status==="starting" && (
+                <div className="card" style={{ padding:"48px 24px",textAlign:"center" }}>
+                  <div style={{ width:64,height:64,borderRadius:"50%",background:"rgba(34,197,94,.1)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:20 }}>
+                    <div className="spinner" style={{ width:28,height:28,borderColor:"rgba(34,197,94,.2)",borderTopColor:"var(--green)" }} />
+                  </div>
+                  <h2 style={{ fontWeight:700,fontSize:17,marginBottom:8 }}>Sedang Memulakan Bot...</h2>
+                  <p style={{ color:"var(--muted)",fontSize:13 }}>Kod QR akan muncul dalam beberapa saat</p>
+                </div>
+              )}
+
+              {/* DISCONNECTED — Guided Setup */}
+              {(status.status==="disconnected"||status.status==="auth_failed") && !status.is_running && config && (
+                <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+                  <div className="card" style={{ padding:"18px 22px",background:"linear-gradient(135deg,rgba(34,197,94,.06),rgba(34,197,94,.02))",borderColor:"rgba(34,197,94,.2)" }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:12 }}>
+                      <div style={{ width:42,height:42,borderRadius:12,background:"linear-gradient(135deg,#22c55e,#16a34a)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                        <Bot size={22} color="#fff" />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight:800,fontSize:16 }}>Setup Bot dalam 3 Minit</div>
+                        <div style={{ fontSize:13,color:"var(--muted)" }}>Ikut langkah di bawah untuk aktifkan bot anda</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 1 */}
+                  <div className="card" style={{ padding:0,overflow:"hidden",border:config.knowledge?"1.5px solid var(--green)":"1px solid var(--border)" }}>
+                    <div style={{ padding:"16px 20px",display:"flex",alignItems:"center",gap:14 }}>
+                      <div style={{ width:36,height:36,borderRadius:10,background:config.knowledge?"var(--green)":"var(--muted-bg)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .2s" }}>
+                        {config.knowledge?<CheckCircle2 size={18} color="#fff"/>:<span style={{ fontWeight:800,fontSize:14,color:"var(--muted)" }}>1</span>}
+                      </div>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ fontWeight:700,fontSize:14,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap" }}>
+                          Tambah Pengetahuan Bot
+                          {config.knowledge&&<span style={{ fontSize:11,background:"var(--green-bg)",color:"var(--green-dark)",borderRadius:99,padding:"1px 8px",fontWeight:600 }}>✓ Siap</span>}
+                        </div>
+                        <div style={{ fontSize:12,color:"var(--muted)",marginTop:2 }}>
+                          {config.knowledge?`${config.knowledge.length.toLocaleString()} aksara`:"Bot perlu info produk & FAQ"}
+                        </div>
+                      </div>
+                      <button className="btn btn-default btn-sm" onClick={()=>setTab(2)} style={{ flexShrink:0 }}>
+                        {config.knowledge?"Edit →":"Mula →"}
+                      </button>
+                    </div>
+                    {!config.knowledge&&(
+                      <div style={{ padding:"0 20px 16px",borderTop:"1px solid var(--border)" }}>
+                        <textarea className="input" style={{ minHeight:90,fontFamily:"'Courier New',monospace",fontSize:12.5,marginBottom:8,marginTop:12 }}
+                          placeholder={"Nama kedai: Kedai Anda
+Produk: Baju T-shirt RM30
+Waktu: Isnin-Jumaat 9am-6pm"}
+                          value={config.knowledge}
+                          onChange={e=>setConfig({...config,knowledge:e.target.value})} />
+                        <button className="btn btn-default btn-sm" onClick={saveConfig} disabled={saving} style={{ width:"100%" }}>
+                          {saving?<><span className="spinner spinner-white" style={{ width:13,height:13 }}/> Menyimpan...</>:"💾 Simpan & Teruskan"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className="card" style={{ padding:"16px 20px",display:"flex",alignItems:"center",gap:14,border:config.has_payment_qr?"1.5px solid var(--green)":"1px solid var(--border)" }}>
+                    <div style={{ width:36,height:36,borderRadius:10,background:config.has_payment_qr?"var(--green)":"var(--muted-bg)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                      {config.has_payment_qr?<CheckCircle2 size={18} color="#fff"/>:<span style={{ fontWeight:800,fontSize:14,color:"var(--muted)" }}>2</span>}
+                    </div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontWeight:700,fontSize:14,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap" }}>
+                        Upload QR Bayaran
+                        <span style={{ fontSize:11,background:"var(--muted-bg)",color:"var(--muted)",borderRadius:99,padding:"1px 8px" }}>Optional</span>
+                        {config.has_payment_qr&&<span style={{ fontSize:11,background:"var(--green-bg)",color:"var(--green-dark)",borderRadius:99,padding:"1px 8px",fontWeight:600 }}>✓ Siap</span>}
+                      </div>
+                      <div style={{ fontSize:12,color:"var(--muted)",marginTop:2 }}>
+                        {config.has_payment_qr?"QR DuitNow/TNG sudah diupload":"Bot hantar QR auto bila pelanggan tanya bayaran"}
+                      </div>
+                    </div>
+                    <button className="btn btn-secondary btn-sm" onClick={()=>setTab(3)} style={{ flexShrink:0 }}>
+                      {config.has_payment_qr?"Tukar":"Upload"}
+                    </button>
+                  </div>
+
+                  {/* Step 3 — Activate */}
+                  <div className="card" style={{ padding:"20px 22px",background:config.knowledge?"linear-gradient(135deg,rgba(34,197,94,.08),rgba(34,197,94,.03))":"var(--muted-bg)",borderColor:config.knowledge?"rgba(34,197,94,.25)":"var(--border)" }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:14 }}>
+                      <div style={{ width:36,height:36,borderRadius:10,background:config.knowledge?"var(--green)":"#d4d4d8",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                        <span style={{ fontWeight:800,fontSize:14,color:"#fff" }}>3</span>
+                      </div>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ fontWeight:700,fontSize:14 }}>Hidupkan Bot</div>
+                        <div style={{ fontSize:12,color:"var(--muted)",marginTop:2 }}>
+                          {config.knowledge?"Bot sedia! Klik untuk sambung WhatsApp":"Lengkapkan langkah 1 dahulu"}
+                        </div>
+                      </div>
+                      <button className="btn btn-primary" onClick={startBot} disabled={!config.knowledge} style={{ flexShrink:0,opacity:config.knowledge?1:.5 }}>
+                        <Play size={15} /> Hidupkan
+                      </button>
+                    </div>
+                    {!config.knowledge&&(
+                      <div style={{ marginTop:12,fontSize:12,color:"var(--muted)",padding:"8px 12px",background:"rgba(0,0,0,.04)",borderRadius:8 }}>
+                        💡 Tambah pengetahuan (Langkah 1) supaya bot boleh menjawab soalan pelanggan.
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
