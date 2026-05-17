@@ -158,51 +158,71 @@ export async function startBot(userId) {
   updateSessionStatus(userId, "starting");
 
   const dataRoot = process.env.DATA_PATH || process.env.DATA_ROOT || path.join(__dirname, "../..");
-  fs.mkdirSync(path.join(dataRoot, `sessions/user_${userId}`), { recursive: true });
+  const sessionPath = path.join(dataRoot, "sessions");
+  fs.mkdirSync(path.join(sessionPath, `user_${userId}`), { recursive: true });
 
-  const client = new Client({
-    authStrategy: new LocalAuth({
-      clientId: `user_${userId}`,
-      dataPath: path.join(dataRoot, "sessions"),
-    }),
-    puppeteer: {
-      headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--no-zygote",
-      ],
-    },
-    // Restore session faster
-    restartOnAuthFail: false,
-  });
+  let client;
+  try {
+    client = new Client({
+      authStrategy: new LocalAuth({
+        clientId: `user_${userId}`,
+        dataPath: sessionPath,
+      }),
+      puppeteer: {
+        headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+          "--no-zygote",
+          "--single-process",
+        ],
+      },
+      restartOnAuthFail: false,
+    });
+  } catch (err) {
+    logBotError(userId, `Failed to create client: ${err.message}`);
+    updateSessionStatus(userId, "disconnected");
+    return;
+  }
 
   botInstances.set(userId, client);
 
+  // ── Event: QR code ready ────────────────────────────────────────────────────
   client.on("qr", async (qr) => {
-    console.log(`📱 QR generated for user ${userId}`);
-    // New QR = fresh start, reset reconnect counter
-    reconnectAttempts.delete(userId);
-    const qrDataUrl = await qrcode.toDataURL(qr);
-    updateSessionStatus(userId, "qr_pending", "", qrDataUrl);
+    try {
+      console.log(`📱 QR generated for user ${userId}`);
+      reconnectAttempts.delete(userId);
+      const qrDataUrl = await qrcode.toDataURL(qr);
+      updateSessionStatus(userId, "qr_pending", "", qrDataUrl);
+    } catch (err) {
+      logBotError(userId, `QR generation error: ${err.message}`);
+    }
   });
 
-  client.on("ready", async () => {
-    const phone = client.info?.wid?.user || "";
-    console.log(`✅ Bot ready for user ${userId} — ${phone}`);
-    reconnectAttempts.delete(userId); // reset counter on successful connect
-    updateSessionStatus(userId, "connected", phone, "");
+  // ── Event: Bot ready ────────────────────────────────────────────────────────
+  client.on("ready", () => {
+    try {
+      const phone = client.info?.wid?.user || "";
+      console.log(`✅ Bot ready for user ${userId} — ${phone}`);
+      reconnectAttempts.delete(userId);
+      updateSessionStatus(userId, "connected", phone, "");
+    } catch (err) {
+      logBotError(userId, `Ready handler error: ${err.message}`);
+    }
   });
 
+  // ── Event: Auth failure ─────────────────────────────────────────────────────
   client.on("auth_failure", (msg) => {
     logBotError(userId, `Auth failed: ${msg}`);
     updateSessionStatus(userId, "auth_failed");
     botInstances.delete(userId);
+    // Don't auto-reconnect — user must re-scan QR
   });
 
+  // ── Event: Disconnected ─────────────────────────────────────────────────────
   client.on("disconnected", (reason) => {
     console.log(`🔌 Bot disconnected for user ${userId} — reason: ${reason}`);
     botInstances.delete(userId);
@@ -210,12 +230,12 @@ export async function startBot(userId) {
       updateSessionStatus(userId, "disconnected");
       reconnectAttempts.delete(userId);
     } else {
-      logBotError(userId, `Disconnected: ${reason}`);
+      logBotError(userId, `Disconnected unexpectedly: ${reason}`);
       scheduleReconnect(userId);
     }
   });
 
-  // ── Handle incoming messages ────────────────────────────────────────────────
+  // ── Event: Incoming messages ────────────────────────────────────────────────
   client.on("message", async (message) => {
     try {
       if (!message.body || message.type !== "chat") return;
@@ -223,9 +243,8 @@ export async function startBot(userId) {
       const config = db.prepare("SELECT * FROM bot_configs WHERE user_id = ?").get(userId);
       if (!config) return;
 
-      // Check if user account is still active
       const user = db.prepare("SELECT is_active, max_messages, plan FROM users WHERE id = ?").get(userId);
-      if (!user?.is_active) return;
+      if (!user?.is_active) { console.log(`⛔ User ${userId} suspended`); return; }
 
       const contact = await message.getContact();
       const chat    = await message.getChat();
@@ -235,53 +254,38 @@ export async function startBot(userId) {
       if (config.ignore_groups && chat.isGroup) return;
 
       const allowedList = config.allowed_numbers
-        ? config.allowed_numbers.split(",").map((n) => n.trim()).filter(Boolean)
+        ? config.allowed_numbers.split(",").map(n => n.trim()).filter(Boolean)
         : [];
       if (allowedList.length > 0 && !allowedList.includes(senderNumber)) return;
 
       const userText = message.body.trim();
       console.log(`📨 User ${userId} — [${senderNumber}]: ${userText}`);
 
-      // ── Commands ──────────────────────────────────────────────────────────
       if (userText.toLowerCase() === "!reset") {
         clearHistory(userId, contactId);
-        await safeSend(() => message.reply("Ingatan dah dibersihkan! Jom mula semula 🧹"));
-        return;
-      }
-      if (userText.toLowerCase() === "!help") {
-        await safeSend(() => message.reply(
-          `Hai! Saya ${config.bot_name} 😊\n\nTaip soalan awak dan saya akan cuba bantu!\n\n!reset - Padam ingatan chat`
-        ));
+        await safeSend(() => message.reply("Ingatan dah dibersihkan! 🧹"));
         return;
       }
 
-      // Show typing indicator (non-critical — ignore errors)
       await safeSend(() => chat.sendStateTyping());
 
-      // ── Check monthly message limit ────────────────────────────────────────
-      if (!user?.is_active) {
-        console.log(`⛔ User ${userId} account suspended, ignoring message`);
-        return;
-      }
+      // ── Check monthly limit ───────────────────────────────────────────────
       const msgThisMonth = db.prepare(`
         SELECT COUNT(*) as c FROM message_logs
         WHERE user_id = ? AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
       `).get(userId).c;
       const maxMsg = user?.max_messages || 50;
       if (msgThisMonth >= maxMsg) {
-        console.log(`⚠️ User ${userId} reached monthly limit (${msgThisMonth}/${maxMsg}), ignoring message`);
+        console.log(`⚠️ User ${userId} monthly limit reached (${msgThisMonth}/${maxMsg})`);
         await safeSend(() => message.reply(
-          `⚠️ Had mesej bulanan anda (${maxMsg} mesej) telah dicapai. Sila naik taraf plan anda untuk terus menggunakan bot.`
+          `⚠️ Had mesej bulanan anda (${maxMsg} mesej) telah dicapai. Sila naik taraf plan anda.`
         ));
         return;
       }
 
-      // ── Payment QR ────────────────────────────────────────────────────────
-      // If it's a payment query AND we have a QR image, send it and stop.
-      // Don't call Claude — avoids contradictory replies.
+      // ── Payment QR ───────────────────────────────────────────────────────
       if (isPaymentQuery(userText)) {
-        // Find QR file with any extension
-        const uploadsDir = path.join(process.env.DATA_PATH || process.env.DATA_ROOT || path.join(__dirname, "../.."), `uploads/${userId}`);
+        const uploadsDir = path.join(dataRoot, `uploads/${userId}`);
         let qrImagePath = null;
         for (const ext of [".jpg",".jpeg",".png",".webp"]) {
           const p = path.join(uploadsDir, `payment-qr${ext}`);
@@ -289,73 +293,43 @@ export async function startBot(userId) {
         }
         if (qrImagePath) {
           await safeSend(async () => {
-            const media   = MessageMedia.fromFilePath(qrImagePath);
+            const media = MessageMedia.fromFilePath(qrImagePath);
             const caption = config.payment_caption || "Ini QR code untuk pembayaran 😊";
             await chat.sendMessage(media, { caption });
-            console.log(`💳 Payment QR sent for user ${userId}`);
+            console.log(`💳 QR sent for user ${userId}`);
           });
-          // Log and stop — no Claude reply needed
-          try {
-            db.prepare("INSERT INTO message_logs (user_id, sender, message, reply) VALUES (?, ?, ?, ?)")
-              .run(userId, senderNumber, userText, "[QR Pembayaran dihantar]");
-          } catch {}
-          return; // ← stop here, don't call Claude
+          try { db.prepare("INSERT INTO message_logs (user_id, sender, message, reply) VALUES (?, ?, ?, ?)").run(userId, senderNumber, userText, "[QR Pembayaran dihantar]"); } catch {}
+          return;
         }
-        // No QR image uploaded yet — let Claude handle it normally
       }
 
-      // ── AI reply ──────────────────────────────────────────────────────────
+      // ── AI reply ─────────────────────────────────────────────────────────
       const reply = await askClaude(userId, contactId, userText, config);
       await safeSend(() => message.reply(reply));
-
-      // Log the message
-      try {
-        db.prepare(
-          "INSERT INTO message_logs (user_id, sender, message, reply) VALUES (?, ?, ?, ?)"
-        ).run(userId, senderNumber, userText, reply);
-      } catch (dbErr) {
-        console.error(`DB log error for user ${userId}:`, dbErr.message);
-      }
+      try { db.prepare("INSERT INTO message_logs (user_id, sender, message, reply) VALUES (?, ?, ?, ?)").run(userId, senderNumber, userText, reply); } catch {}
 
     } catch (err) {
-      const isTargetClosed =
-        err.message?.includes("Target closed") ||
-        err.message?.includes("Execution context was destroyed") ||
-        err.message?.includes("Protocol error");
-
+      const isTargetClosed = err.message?.includes("Target closed") ||
+        err.message?.includes("Execution context") || err.message?.includes("Protocol error");
       if (isTargetClosed) {
-        console.warn(`⚠️  User ${userId}: browser context lost during message handling — will reconnect`);
+        console.warn(`⚠️ User ${userId}: browser context lost`);
       } else {
-        console.error(`❌ Error handling message for user ${userId}:`, err.message);
-        // Try to send error message — but don't crash if this also fails
+        logBotError(userId, `Message handler: ${err.message}`);
         await safeSend(() => message.reply("Maaf, ada masalah teknikal. Cuba lagi ye 🙏"));
       }
     }
   });
 
-  client.initialize();
-
-  // ── Catch initialization errors ───────────────────────────────────────────
-  client.on("disconnected", (reason) => {
-    // already handled above
-  });
-
-  // Catch unhandled promise from initialize()
-  const initPromise = new Promise((_, reject) => {
-    client.once("auth_failure", (msg) => reject(new Error(`Auth failure: ${msg}`)));
-  });
-
-  Promise.race([
-    new Promise(r => client.once("ready", r)),
-    new Promise(r => client.once("qr", r)),
-    new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout: bot did not start within 120s")), 120000)),
-  ]).catch(err => {
-    console.error(`❌ Bot init error for user ${userId}:`, err.message);
-    updateSessionStatus(userId, "disconnected");
+  // ── Initialize with error catch ─────────────────────────────────────────────
+  try {
+    await client.initialize();
+  } catch (err) {
+    logBotError(userId, `Initialize failed: ${err.message}`);
+    console.error(`❌ client.initialize() failed for user ${userId}:`, err.message);
     botInstances.delete(userId);
-  });
+    updateSessionStatus(userId, "disconnected");
+  }
 }
-
 // ── Stop bot ──────────────────────────────────────────────────────────────────
 export async function stopBot(userId) {
   // Cancel any pending reconnect
