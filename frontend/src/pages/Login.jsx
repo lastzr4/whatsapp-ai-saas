@@ -5,14 +5,11 @@ import { api } from "../lib/api.js";
 import { getGoogleClientId, onGoogleReady } from "../lib/googleAuth.js";
 
 function GoogleBtn({ label, onSuccess }) {
-  const [gid, setGid] = useState(getGoogleClientId()); // use cached value immediately
+  const [gid, setGid] = useState(getGoogleClientId());
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // If not cached yet, wait for it
-    if (gid === null) {
-      onGoogleReady(id => setGid(id));
-    }
+    if (!gid) onGoogleReady(id => setGid(id));
   }, []);
 
   if (!gid) return null;
@@ -37,70 +34,22 @@ function GoogleBtn({ label, onSuccess }) {
     document.head.appendChild(s);
   }
 
-  const googleSvg = <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;
-
   return (
     <>
       <button type="button" onClick={doLogin} disabled={loading}
-        style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"11px 16px",borderRadius:10,border:"1.5px solid #e4e4e7",background:"#fff",cursor:"pointer",fontSize:14,fontWeight:600,color:"#374151" }}
+        style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"11px 16px",borderRadius:10,border:"1.5px solid #e4e4e7",background:"#fff",cursor:"pointer",fontSize:14,fontWeight:600,color:"#374151",transition:"all .15s" }}
         onMouseEnter={e=>e.currentTarget.style.background="#f9fafb"}
         onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-        {loading ? <span className="spinner" style={{ width:18,height:18,borderColor:"rgba(0,0,0,.1)",borderTopColor:"#374151" }}/> : googleSvg}
+        {loading
+          ? <span className="spinner" style={{ width:18,height:18,borderColor:"rgba(0,0,0,.1)",borderTopColor:"#374151" }}/>
+          : <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        }
         {label}
       </button>
       <div style={{ display:"flex",alignItems:"center",gap:10,margin:"16px 0" }}>
         <div style={{ flex:1,height:1,background:"#e4e4e7" }}/>
         <span style={{ fontSize:12,color:"#71717a",fontWeight:500 }}>atau</span>
         <div style={{ flex:1,height:1,background:"#e4e4e7" }}/>
-      </div>
-    </>
-  );
-}
-
-
-// Fetch Google Client ID from backend at runtime
-function GoogleBtn({ label, onSuccess }) {
-  const gid = useGoogleClientId();
-  const [loading, setLoading] = useState(false);
-
-  if (!gid) return null; // null=loading or ""=no google — hide button
-
-  function handleClick() {
-    function init() {
-      window.google.accounts.id.initialize({
-        client_id: gid,
-        callback: async ({ credential }) => {
-          setLoading(true);
-          try { const d = await api("POST", "/auth/google", { credential }); onSuccess(d); }
-          catch(e) { alert(e.message); }
-          setLoading(false);
-        },
-      });
-      window.google.accounts.id.prompt();
-    }
-    if (window.google) { init(); return; }
-    const s = document.createElement("script");
-    s.src = "https://accounts.google.com/gsi/client";
-    s.onload = init;
-    document.head.appendChild(s);
-  }
-
-  return (
-    <>
-      <button type="button" onClick={handleClick} disabled={loading}
-        style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"10px 16px",borderRadius:10,border:"1.5px solid var(--border)",background:"#fff",cursor:"pointer",fontSize:14,fontWeight:600,color:"#374151",transition:"all .15s" }}
-        onMouseEnter={e=>e.currentTarget.style.background="#f9fafb"}
-        onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-        {loading
-          ? <span className="spinner" style={{ width:18,height:18,borderColor:"rgba(0,0,0,.1)",borderTopColor:"#374151" }} />
-          : <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-        }
-        {label}
-      </button>
-      <div style={{ display:"flex",alignItems:"center",gap:10,margin:"18px 0" }}>
-        <div style={{ flex:1,height:1,background:"var(--border)" }} />
-        <span style={{ fontSize:12,color:"var(--muted)",fontWeight:500 }}>atau</span>
-        <div style={{ flex:1,height:1,background:"var(--border)" }} />
       </div>
     </>
   );
@@ -126,12 +75,12 @@ function AuthCard({ children }) {
 }
 
 export default function Login() {
-  const [form, setForm]       = useState({ email:"", password:"" });
-  const [showPw, setShowPw]   = useState(false);
-  const [error, setError]     = useState("");
+  const [form, setForm]     = useState({ email:"", password:"" });
+  const [showPw, setShowPw] = useState(false);
+  const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
-  const [view, setView]       = useState("login");
-  const [forgotEmail, setForgotEmail]     = useState("");
+  const [view, setView]     = useState("login");
+  const [forgotEmail, setForgotEmail]         = useState("");
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
   const [resending, setResending] = useState(false);
   const navigate = useNavigate();
@@ -146,9 +95,8 @@ export default function Login() {
     e.preventDefault(); setLoading(true); setError("");
     try { handleSuccess(await api("POST","/auth/login",form)); }
     catch(err) {
-      if (err.message?.includes("sahkan") || err.message?.includes("Verification")) {
-        setUnverifiedEmail(form.email); setView("verify_notice");
-      } else { setError(err.message); }
+      if (err.message?.includes("sahkan")) { setUnverifiedEmail(form.email); setView("verify_notice"); }
+      else setError(err.message);
     }
     finally { setLoading(false); }
   }
@@ -173,14 +121,14 @@ export default function Login() {
         <h2 style={{ fontWeight:700,fontSize:19,marginBottom:4 }}>Log Masuk</h2>
         <p style={{ fontSize:13,color:"var(--muted)",marginBottom:20 }}>Selamat kembali!</p>
         <GoogleBtn label="Teruskan dengan Google" onSuccess={handleSuccess} />
-        {error && <div style={{ display:"flex",alignItems:"center",gap:8,background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.2)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13.5,color:"#dc2626" }}><AlertCircle size={15} /> {error}</div>}
+        {error && <div style={{ display:"flex",alignItems:"center",gap:8,background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.2)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13.5,color:"#dc2626" }}><AlertCircle size={15}/> {error}</div>}
         <form onSubmit={handleLogin} style={{ display:"flex",flexDirection:"column",gap:14 }}>
           <div>
             <label className="form-label">Email</label>
             <div style={{ position:"relative" }}>
-              <Mail size={15} style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:"var(--muted)" }} />
+              <Mail size={15} style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:"var(--muted)" }}/>
               <input className="input" type="email" placeholder="email@example.com" autoComplete="email"
-                style={{ paddingLeft:38 }} value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required />
+                style={{ paddingLeft:38 }} value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required/>
             </div>
           </div>
           <div>
@@ -192,17 +140,17 @@ export default function Login() {
               </button>
             </div>
             <div style={{ position:"relative" }}>
-              <Lock size={15} style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:"var(--muted)" }} />
+              <Lock size={15} style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:"var(--muted)" }}/>
               <input className="input" type={showPw?"text":"password"} placeholder="••••••••" autoComplete="current-password"
-                style={{ paddingLeft:38,paddingRight:42 }} value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required />
+                style={{ paddingLeft:38,paddingRight:42 }} value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required/>
               <button type="button" onClick={()=>setShowPw(p=>!p)}
                 style={{ position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--muted)",display:"flex" }}>
-                {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
+                {showPw?<EyeOff size={16}/>:<Eye size={16}/>}
               </button>
             </div>
           </div>
           <button className="btn btn-default btn-lg" type="submit" disabled={loading} style={{ width:"100%",marginTop:4 }}>
-            {loading ? <><span className="spinner spinner-white" style={{ width:16,height:16 }}/> Memproses...</> : "Log Masuk →"}
+            {loading?<><span className="spinner spinner-white" style={{ width:16,height:16 }}/> Memproses...</>:"Log Masuk →"}
           </button>
         </form>
         <p style={{ textAlign:"center",marginTop:18,fontSize:13,color:"var(--muted)" }}>
@@ -217,18 +165,18 @@ export default function Login() {
         </button>
         <h2 style={{ fontWeight:700,fontSize:19,marginBottom:4 }}>Lupa Kata Laluan?</h2>
         <p style={{ fontSize:13,color:"var(--muted)",marginBottom:20 }}>Masukkan email untuk reset kata laluan.</p>
-        {error && <div style={{ display:"flex",alignItems:"center",gap:8,background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.2)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13.5,color:"#dc2626" }}><AlertCircle size={15} /> {error}</div>}
+        {error && <div style={{ display:"flex",alignItems:"center",gap:8,background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.2)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13.5,color:"#dc2626" }}><AlertCircle size={15}/> {error}</div>}
         <form onSubmit={handleForgot} style={{ display:"flex",flexDirection:"column",gap:14 }}>
           <div>
             <label className="form-label">Email</label>
             <div style={{ position:"relative" }}>
-              <Mail size={15} style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:"var(--muted)" }} />
+              <Mail size={15} style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:"var(--muted)" }}/>
               <input className="input" type="email" placeholder="email@example.com" style={{ paddingLeft:38 }}
-                value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} required />
+                value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} required/>
             </div>
           </div>
           <button className="btn btn-default btn-lg" type="submit" disabled={loading} style={{ width:"100%" }}>
-            {loading ? <><span className="spinner spinner-white" style={{ width:16,height:16 }}/> Menghantar...</> : <><Send size={15}/> Hantar Link Reset</>}
+            {loading?<><span className="spinner spinner-white" style={{ width:16,height:16 }}/> Menghantar...</>:<><Send size={15}/> Hantar Link Reset</>}
           </button>
         </form>
       </>}
@@ -236,7 +184,7 @@ export default function Login() {
       {view==="forgot_sent" && (
         <div style={{ textAlign:"center",padding:"8px 0" }}>
           <div style={{ width:56,height:56,borderRadius:14,background:"var(--green-bg)",border:"1px solid var(--green-border)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:16 }}>
-            <Mail size={26} style={{ color:"var(--green-dark)" }} />
+            <Mail size={26} style={{ color:"var(--green-dark)" }}/>
           </div>
           <h2 style={{ fontWeight:700,fontSize:18,marginBottom:8 }}>Email Dihantar!</h2>
           <p style={{ fontSize:13.5,color:"var(--muted)",lineHeight:1.6,marginBottom:22 }}>
@@ -251,7 +199,7 @@ export default function Login() {
       {view==="verify_notice" && (
         <div style={{ textAlign:"center",padding:"8px 0" }}>
           <div style={{ width:56,height:56,borderRadius:14,background:"rgba(59,130,246,.08)",border:"1px solid rgba(59,130,246,.2)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:16 }}>
-            <Mail size={26} style={{ color:"#3b82f6" }} />
+            <Mail size={26} style={{ color:"#3b82f6" }}/>
           </div>
           <h2 style={{ fontWeight:700,fontSize:18,marginBottom:8 }}>Sahkan Email Anda</h2>
           <p style={{ fontSize:13.5,color:"var(--muted)",lineHeight:1.6,marginBottom:20 }}>
@@ -259,7 +207,7 @@ export default function Login() {
           </p>
           <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
             <button onClick={resend} disabled={resending} className="btn btn-outline" style={{ width:"100%" }}>
-              {resending ? <><span className="spinner" style={{ width:14,height:14 }}/> Menghantar...</> : <><RefreshCw size={14}/> Hantar Semula</>}
+              {resending?<><span className="spinner" style={{ width:14,height:14 }}/> Menghantar...</>:<><RefreshCw size={14}/> Hantar Semula</>}
             </button>
             <button onClick={()=>{ setView("login"); setError(""); }} className="btn btn-ghost" style={{ width:"100%",fontSize:13 }}>
               <ArrowLeft size={13}/> Kembali ke Login
