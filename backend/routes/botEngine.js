@@ -213,7 +213,7 @@ export async function startBot(userId) {
       if (!config) return;
 
       // Check if user account is still active
-      const user = db.prepare("SELECT is_active FROM users WHERE id = ?").get(userId);
+      const user = db.prepare("SELECT is_active, max_messages, plan FROM users WHERE id = ?").get(userId);
       if (!user?.is_active) return;
 
       const contact = await message.getContact();
@@ -248,7 +248,6 @@ export async function startBot(userId) {
       await safeSend(() => chat.sendStateTyping());
 
       // ── Check monthly message limit ────────────────────────────────────────
-      const user = db.prepare("SELECT max_messages, plan, is_active FROM users WHERE id = ?").get(userId);
       if (!user?.is_active) {
         console.log(`⛔ User ${userId} account suspended, ignoring message`);
         return;
