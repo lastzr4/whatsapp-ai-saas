@@ -393,16 +393,16 @@ export function isBotRunning(userId) {
 }
 
 export function restoreActiveBots() {
-  // Reset sessions stuck in "starting" or "qr_pending" — these never completed
+  // Reset sessions stuck in "starting" or "qr_pending"
   db.prepare("UPDATE bot_sessions SET status = 'stopped', qr_code = '' WHERE status IN ('starting', 'qr_pending')").run();
 
-  // Restore bots that were connected OR manually stopped (session files still exist)
+  // Only restore bots that have a phone_number — confirmed they were connected before
   const sessions = db
-    .prepare("SELECT user_id, phone_number FROM bot_sessions WHERE status IN ('connected', 'stopped')")
+    .prepare("SELECT user_id, phone_number FROM bot_sessions WHERE status IN ('connected', 'stopped') AND phone_number IS NOT NULL AND phone_number != ''")
     .all();
 
   sessions.forEach(({ user_id, phone_number }) => {
-    console.log(`🔄 Restoring bot for user ${user_id} (was connected as +${phone_number})...`);
+    console.log(`🔄 Restoring bot for user ${user_id} (+${phone_number})...`);
     startBot(user_id);
   });
 }
