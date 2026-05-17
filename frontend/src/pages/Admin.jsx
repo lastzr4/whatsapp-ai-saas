@@ -434,6 +434,7 @@ function TenantModal({ tenant, onClose, onSave, showToast }) {
 function PlanConfig({ showToast }) {
   const [limits, setLimits]   = useState(null);
   const [saving, setSaving]   = useState({});
+  const [syncing, setSyncing] = useState(false);
   const [local, setLocal]     = useState({});
 
   async function load() {
@@ -451,11 +452,20 @@ function PlanConfig({ showToast }) {
   async function save(plan) {
     setSaving(s=>({...s,[plan]:true}));
     try {
-      await api("PUT",`/admin/plan-limits/${plan}`, local[plan]);
-      showToast(`✅ Had plan ${PLAN_LABELS[plan]} dikemaskini!`);
+      const r = await api("PUT",`/admin/plan-limits/${plan}`, local[plan]);
+      showToast(`✅ Had ${PLAN_LABELS[plan]} dikemaskini! ${r.users_updated} user terkesan.`);
       load();
     } catch(e) { showToast(e.message,"error"); }
     setSaving(s=>({...s,[plan]:false}));
+  }
+
+  async function syncAll() {
+    setSyncing(true);
+    try {
+      const r = await api("POST","/admin/plan-limits/sync-all");
+      showToast(`✅ ${r.users_updated} user disync dengan had plan semasa!`);
+    } catch(e) { showToast(e.message,"error"); }
+    setSyncing(false);
   }
 
   if (!limits) return <div style={{ textAlign:"center",padding:48 }}><div className="spinner" style={{ margin:"0 auto" }} /></div>;
@@ -464,9 +474,17 @@ function PlanConfig({ showToast }) {
 
   return (
     <div style={{ maxWidth:800, margin:"0 auto", display:"flex", flexDirection:"column", gap:16 }}>
-      <div className="card" style={{ padding:"16px 20px", background:"rgba(59,130,246,.04)", borderColor:"rgba(59,130,246,.2)" }}>
-        <div style={{ fontWeight:600, fontSize:13.5, color:"#1d4ed8" }}>
-          ℹ️ Perubahan had plan di sini hanya akan affect user <strong>baru</strong> atau bila plan user ditukar. User sedia ada tidak terkesan melainkan plan mereka dikemaskini semula.
+      <div className="card" style={{ padding:"16px 20px", background:"rgba(34,197,94,.04)", borderColor:"rgba(34,197,94,.2)" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
+          <div style={{ fontWeight:600, fontSize:13.5, color:"var(--green-dark)" }}>
+            ℹ️ Perubahan had plan akan affect <strong>semua user</strong> dalam plan tersebut secara serta-merta.
+          </div>
+          <button className="btn btn-default btn-sm" onClick={syncAll} disabled={syncing}>
+            {syncing
+              ? <><span className="spinner spinner-white" style={{ width:13,height:13 }}/> Syncing...</>
+              : <><RefreshCw size={13}/> Sync Semua User Sekarang</>
+            }
+          </button>
         </div>
       </div>
 

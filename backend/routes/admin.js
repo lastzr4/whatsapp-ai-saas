@@ -111,11 +111,27 @@ router.put("/plan-limits/:plan", (req, res) => {
   const { plan } = req.params;
   if (!["basic","starter","pro"].includes(plan))
     return res.status(400).json({ error: "Invalid plan" });
-  db.prepare(`
-    UPDATE plan_limits SET max_messages = ?, max_logs = ?, max_numbers = ?, updated_at = datetime('now')
-    WHERE plan = ?
-  `).run(max_messages, max_logs, max_numbers, plan);
-  res.json({ success: true });
+
+  db.prepare(`UPDATE plan_limits SET max_messages = ?, max_logs = ?, max_numbers = ?, updated_at = datetime('now') WHERE plan = ?`)
+    .run(max_messages, max_logs, max_numbers, plan);
+
+  const result = db.prepare(`UPDATE users SET max_messages = ?, max_logs = ?, max_numbers = ? WHERE plan = ? AND is_admin = 0`)
+    .run(max_messages, max_logs, max_numbers, plan);
+
+  res.json({ success: true, users_updated: result.changes });
+});
+
+// ── Sync ALL users with current plan_limits immediately ───────────────────────
+router.post("/plan-limits/sync-all", (req, res) => {
+  const result = db.prepare(`
+    UPDATE users SET
+      max_messages = (SELECT max_messages FROM plan_limits WHERE plan = users.plan),
+      max_logs     = (SELECT max_logs     FROM plan_limits WHERE plan = users.plan),
+      max_numbers  = (SELECT max_numbers  FROM plan_limits WHERE plan = users.plan)
+    WHERE is_admin = 0
+      AND EXISTS (SELECT 1 FROM plan_limits WHERE plan = users.plan)
+  `).run();
+  res.json({ success: true, users_updated: result.changes });
 });
 
 // ── Reset Tenant Password ────────────────────────────────────────────────────
@@ -252,9 +268,16 @@ router.post("/db/add-user", async (req, res) => {
     return res.status(400).json({ error: "Kata laluan minimum 6 aksara" });
   try {
     const hashed = await bcrypt.hash(password, 10);
+    const userPlan = plan || "basic";
+    // Read limits from plan_limits table
+    const planLimits = db.prepare("SELECT * FROM plan_limits WHERE plan = ?").get(userPlan);
+    const maxMessages = planLimits?.max_messages ?? 50;
+    const maxLogs     = planLimits?.max_logs     ?? 5;
+    const maxNumbers  = planLimits?.max_numbers  ?? 1;
+
     const result = db.prepare(
-      "INSERT INTO users (email, password, name, plan, is_admin, is_active, is_verified) VALUES (?, ?, ?, ?, ?, 1, 1)"
-    ).run(email, hashed, name, plan || "basic", is_admin ? 1 : 0);
+      "INSERT INTO users (email, password, name, plan, is_admin, is_active, is_verified, max_messages, max_logs, max_numbers) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?)"
+    ).run(email, hashed, name, userPlan, is_admin ? 1 : 0, maxMessages, maxLogs, maxNumbers);
     const userId = result.lastInsertRowid;
     db.prepare("INSERT INTO bot_configs (user_id, bot_name) VALUES (?, ?)").run(userId, "AI Assistant");
     db.prepare("INSERT INTO bot_sessions (user_id) VALUES (?)").run(userId);
