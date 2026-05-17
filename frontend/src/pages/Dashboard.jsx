@@ -438,9 +438,7 @@ export default function Dashboard() {
                     {!config.knowledge&&(
                       <div style={{ padding:"0 20px 16px",borderTop:"1px solid var(--border)" }}>
                         <textarea className="input" style={{ minHeight:90,fontFamily:"'Courier New',monospace",fontSize:12.5,marginBottom:8,marginTop:12 }}
-                          placeholder={"Nama kedai: Kedai Anda
-Produk: Baju T-shirt RM30
-Waktu: Isnin-Jumaat 9am-6pm"}
+                          placeholder={"Nama kedai: Kedai Anda\nProduk: Baju T-shirt RM30\nWaktu: Isnin-Jumaat 9am-6pm"}
                           value={config.knowledge}
                           onChange={e=>setConfig({...config,knowledge:e.target.value})} />
                         <button className="btn btn-default btn-sm" onClick={saveConfig} disabled={saving} style={{ width:"100%" }}>
