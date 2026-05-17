@@ -135,21 +135,26 @@ router.post("/upload-qr", authMiddleware, (req, res, next) => {
 // ── Serve QR image ────────────────────────────────────────────────────────────
 router.get("/payment-qr-image", authMiddleware, (req, res) => {
   const qrPath = getQrPath(req.userId);
-  if (!qrPath) return res.status(404).json({ error: "QR tidak dijumpai" });
-  const ext = path.extname(qrPath).toLowerCase();
-  const mimeTypes = { ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".png":"image/png", ".webp":"image/webp" };
+  if (!qrPath) {
+    console.log(`❌ QR not found for user ${req.userId} in ${path.join(getDataRoot(),"uploads",String(req.userId))}`);
+    return res.status(404).send("QR not found");
+  }
+  const absPath = path.resolve(qrPath);
+  const ext = path.extname(absPath).toLowerCase();
+  const mimeTypes = { ".jpg":"image/jpeg",".jpeg":"image/jpeg",".png":"image/png",".webp":"image/webp" };
+  console.log(`📤 Serving QR for user ${req.userId}: ${absPath} (exists:${fs.existsSync(absPath)})`);
   res.setHeader("Content-Type", mimeTypes[ext] || "image/jpeg");
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.setHeader("Pragma", "no-cache");
-  // sendFile requires absolute path
-  const absPath = path.resolve(qrPath);
-  console.log(`📤 Serving QR for user ${req.userId}: ${absPath}`);
-  res.sendFile(absPath, (err) => {
-    if (err) {
-      console.error(`❌ QR serve error: ${err.message}`);
-      res.status(500).json({ error: "Gagal serve imej" });
-    }
-  });
+  res.setHeader("Expires", "0");
+  // Read file directly instead of sendFile to avoid path issues
+  try {
+    const data = fs.readFileSync(absPath);
+    res.end(data);
+  } catch(err) {
+    console.error(`❌ QR read error for user ${req.userId}:`, err.message);
+    res.status(500).send("Error reading QR");
+  }
 });
 
 // ── Upload knowledge .txt ─────────────────────────────────────────────────────

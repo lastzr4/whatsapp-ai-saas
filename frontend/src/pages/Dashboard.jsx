@@ -717,17 +717,24 @@ export default function Dashboard() {
                       <div style={{ borderRadius:16,border:"2px solid var(--border)",background:"#fff",padding:16,display:"inline-block",boxShadow:"0 4px 16px rgba(0,0,0,.06)" }}>
                         <img
                           key={qrTs}
-                          src={`/api/config/payment-qr-image?t=${qrTs}`}
+                          src={`/api/config/payment-qr-image?t=${qrTs}&uid=${Date.now()}`}
                           alt="QR Pembayaran"
                           style={{ width:200,height:200,objectFit:"contain",display:"block",borderRadius:8 }}
                           onError={e=>{
                             e.target.style.display="none";
-                            e.target.parentElement.querySelector(".qr-error").style.display="flex";
+                            const err = document.getElementById("qr-err-box");
+                            if(err) err.style.display="flex";
+                          }}
+                          onLoad={e=>{
+                            e.target.style.display="block";
+                            const err = document.getElementById("qr-err-box");
+                            if(err) err.style.display="none";
                           }}
                         />
-                        <div className="qr-error" style={{ width:200,height:200,display:"none",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,background:"#f5f5f4",borderRadius:8 }}>
-                          <Camera size={36} style={{ color:"#d4d4d8" }} />
-                          <span style={{ fontSize:12,color:"var(--muted)",textAlign:"center" }}>Gambar tidak dapat dimuatkan.<br/>Sila upload semula.</span>
+                        <div id="qr-err-box" style={{ width:200,height:200,display:"none",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,background:"#f5f5f4",borderRadius:8,padding:12 }}>
+                          <Camera size={32} style={{ color:"#d4d4d8" }} />
+                          <span style={{ fontSize:12,color:"var(--muted)",textAlign:"center",lineHeight:1.5 }}>Gambar tidak dapat dimuatkan</span>
+                          <button className="btn btn-default btn-sm" onClick={()=>setQrTs(Date.now())}>Cuba Semula</button>
                         </div>
                       </div>
                       <div style={{ position:"absolute",top:-8,right:-8,width:26,height:26,borderRadius:99,background:"var(--green)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(34,197,94,.4)" }}>
