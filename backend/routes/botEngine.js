@@ -354,6 +354,10 @@ export function isBotRunning(userId) {
 }
 
 export function restoreActiveBots() {
+  // Reset any sessions stuck in "starting" or "qr_pending" from previous run
+  db.prepare("UPDATE bot_sessions SET status = 'disconnected', qr_code = '' WHERE status IN ('starting', 'qr_pending')").run();
+
+  // Only restore bots that were actually connected
   const sessions = db
     .prepare("SELECT user_id FROM bot_sessions WHERE status = 'connected'")
     .all();

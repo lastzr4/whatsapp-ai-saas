@@ -265,19 +265,21 @@ export default function Dashboard() {
             </span>
           )}
         </div>
-        <div className="btn-row" style={{ gap:6 }}>
-          {!status.is_running && (
-            <button className="btn btn-primary btn-sm" style={{ flex:1 }} onClick={startBot}>
-              <Play size={12} /> Hidupkan
+        {/* Single toggle button */}
+        {!status.is_running ? (
+          <button className="btn btn-primary btn-sm" style={{ width:"100%" }} onClick={startBot}>
+            <Play size={13} /> Hidupkan Bot
+          </button>
+        ) : (
+          <div style={{ display:"flex",gap:6 }}>
+            <button className="btn btn-destructive btn-sm" style={{ flex:1 }} onClick={stopBot}>
+              <Square size={13} /> Hentikan
             </button>
-          )}
-          {status.is_running && (
-            <>
-              <button className="btn btn-secondary btn-sm btn-icon" style={{ flex:1 }} onClick={restartBot}><RotateCw size={14} /></button>
-              <button className="btn btn-destructive btn-sm btn-icon" style={{ flex:1 }} onClick={stopBot}><Square size={14} /></button>
-            </>
-          )}
-        </div>
+            <button className="btn btn-secondary btn-sm btn-icon" onClick={restartBot} title="Restart">
+              <RotateCw size={14} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Usage stats */}
@@ -320,7 +322,12 @@ export default function Dashboard() {
           <UserIcon size={15} />
           <span className="truncate" style={{ fontSize:13 }}>{user.name}</span>
         </div>
-        <button className="nav-item" onClick={async()=>{ try{await api("POST","/auth/logout");}catch{} localStorage.clear(); navigate("/login"); }}>
+        <button className="nav-item" onClick={async()=>{
+          try { await api("POST","/bot/stop"); } catch {}
+          try { await api("POST","/auth/logout"); } catch {}
+          localStorage.clear();
+          navigate("/login");
+        }}>
           <LogOut size={15} />
           Log Keluar
         </button>
@@ -350,16 +357,7 @@ export default function Dashboard() {
             </h1>
             <p>WhatsApp AI Bot</p>
           </div>
-          <div className="btn-row" style={{ flexShrink:0 }}>
-            <div style={{ display:"none" }} className="status-desktop"><StatusBadge status={status.status} /></div>
-            {!status.is_running
-              ? <button className="btn btn-primary btn-sm" onClick={startBot}><Play size={13} /> <span>Hidupkan</span></button>
-              : <>
-                  <button className="btn btn-secondary btn-icon btn-sm" onClick={restartBot}><RotateCw size={15} /></button>
-                  <button className="btn btn-destructive btn-icon btn-sm" onClick={stopBot}><Square size={15} /></button>
-                </>
-            }
-          </div>
+          <StatusBadge status={status.status} />
         </header>
 
         {/* Content */}
