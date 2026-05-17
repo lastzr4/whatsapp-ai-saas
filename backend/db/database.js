@@ -150,6 +150,14 @@ export function initDb() {
       WHERE is_admin = 0
         AND EXISTS (SELECT 1 FROM plan_limits WHERE plan = users.plan)
     ` },
+    { name: "sync_existing_users_v2", sql: `
+      UPDATE users SET
+        max_messages = (SELECT max_messages FROM plan_limits WHERE plan = users.plan),
+        max_logs     = (SELECT max_logs     FROM plan_limits WHERE plan = users.plan),
+        max_numbers  = (SELECT max_numbers  FROM plan_limits WHERE plan = users.plan)
+      WHERE is_admin = 0
+        AND EXISTS (SELECT 1 FROM plan_limits WHERE plan = users.plan)
+    ` },
   ];
 
   for (const m of migrations) {
@@ -166,6 +174,20 @@ export function initDb() {
   // Log user count to confirm data persistence
   const userCount = db.prepare("SELECT COUNT(*) as c FROM users").get().c;
   dbLog(`Users in database: ${userCount}`);
+
+  // Sync all existing users with current plan_limits on every start
+  try {
+    const syncResult = db.prepare(`
+      UPDATE users SET
+        max_messages = (SELECT max_messages FROM plan_limits WHERE plan = users.plan),
+        max_logs     = (SELECT max_logs     FROM plan_limits WHERE plan = users.plan),
+        max_numbers  = (SELECT max_numbers  FROM plan_limits WHERE plan = users.plan)
+      WHERE is_admin = 0
+        AND EXISTS (SELECT 1 FROM plan_limits WHERE plan = users.plan)
+    `).run();
+    if (syncResult.changes > 0) dbLog(`Synced ${syncResult.changes} users with plan limits`);
+  } catch (e) { dbLog(`Plan sync skipped: ${e.message}`); }
+
   console.log(`✅ Database initialized: ${getDbPath()}`);
 }
 
