@@ -21,6 +21,13 @@ function createAuthToken(userId, type, hoursValid = 24) {
   return token;
 }
 
+// ── Google OAuth Config (public) ──────────────────────────────────────────────
+router.get("/google-config", (req, res) => {
+  res.json({
+    clientId: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "",
+  });
+});
+
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 router.post("/google", async (req, res) => {
   try {
