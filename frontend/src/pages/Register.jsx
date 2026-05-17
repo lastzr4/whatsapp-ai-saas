@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Bot, Mail, Lock, Eye, EyeOff, User as UserIcon, AlertCircle } from "lucide-react";
 import { api } from "../lib/api.js";
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_ID = window.__ENV__?.GOOGLE_CLIENT_ID || "";
 
 function GoogleBtn({ label, onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -123,13 +123,14 @@ export default function Register() {
           <p style={{ fontSize:13, color:"var(--muted)", marginBottom:20 }}>Mulakan bot WhatsApp AI anda hari ini</p>
 
           {/* Google Sign Up */}
-          <GoogleBtn label="Daftar dengan Google" onSuccess={handleSuccess} />
-
-          <div style={{ display:"flex", alignItems:"center", gap:10, margin:"18px 0" }}>
-            <div style={{ flex:1, height:1, background:"var(--border)" }} />
-            <span style={{ fontSize:12, color:"var(--muted)", fontWeight:500 }}>atau daftar dengan email</span>
-            <div style={{ flex:1, height:1, background:"var(--border)" }} />
-          </div>
+          {GOOGLE_CLIENT_ID && <GoogleBtn label="Daftar dengan Google" onSuccess={handleSuccess} />}
+          {GOOGLE_CLIENT_ID && (
+            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"18px 0" }}>
+              <div style={{ flex:1, height:1, background:"var(--border)" }} />
+              <span style={{ fontSize:12, color:"var(--muted)", fontWeight:500 }}>atau daftar dengan email</span>
+              <div style={{ flex:1, height:1, background:"var(--border)" }} />
+            </div>
+          )}
 
           {error && (
             <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(239,68,68,.08)", border:"1px solid rgba(239,68,68,.2)", borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:13.5, color:"#dc2626" }}>

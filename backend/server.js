@@ -73,6 +73,15 @@ app.get("/api/setup-admin", async (req, res) => {
 });
 // ── END TEMP ──────────────────────────────────────────────────────────────────
 
+// ── Runtime env config for frontend ──────────────────────────────────────────
+app.get("/api/config/env.js", (_, res) => {
+  res.setHeader("Content-Type", "application/javascript");
+  res.setHeader("Cache-Control", "no-cache, no-store");
+  res.send(`window.__ENV__ = ${JSON.stringify({
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "",
+  })};`);
+});
+
 const FRONTEND_DIST = path.join(__dirname, "../frontend/dist");
 if (fs.existsSync(FRONTEND_DIST)) {
   app.use(express.static(FRONTEND_DIST));
