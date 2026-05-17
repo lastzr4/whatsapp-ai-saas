@@ -352,7 +352,6 @@ export async function startBot(userId) {
 }
 // ── Stop bot ──────────────────────────────────────────────────────────────────
 export async function stopBot(userId) {
-  // Cancel any pending reconnect
   if (reconnectTimers.has(userId)) {
     clearTimeout(reconnectTimers.get(userId));
     reconnectTimers.delete(userId);
@@ -365,7 +364,12 @@ export async function stopBot(userId) {
     botInstances.delete(userId);
   }
 
-  updateSessionStatus(userId, "disconnected");
+  // Mark as "stopped" — keeps phone_number so we know session exists
+  // Don't reset to "disconnected" so user knows bot was connected before
+  db.prepare(`
+    UPDATE bot_sessions SET status = 'stopped', qr_code = '', updated_at = datetime('now')
+    WHERE user_id = ?
+  `).run(userId);
   console.log(`🛑 Bot stopped for user ${userId}`);
 }
 
@@ -379,15 +383,16 @@ export function isBotRunning(userId) {
 }
 
 export function restoreActiveBots() {
-  // Reset any sessions stuck in "starting" or "qr_pending" from previous run
-  db.prepare("UPDATE bot_sessions SET status = 'disconnected', qr_code = '' WHERE status IN ('starting', 'qr_pending')").run();
+  // Reset sessions stuck in "starting" or "qr_pending" — these never completed
+  db.prepare("UPDATE bot_sessions SET status = 'stopped', qr_code = '' WHERE status IN ('starting', 'qr_pending')").run();
 
-  // Only restore bots that were actually connected
+  // Restore bots that were connected OR manually stopped (session files still exist)
   const sessions = db
-    .prepare("SELECT user_id FROM bot_sessions WHERE status = 'connected'")
+    .prepare("SELECT user_id, phone_number FROM bot_sessions WHERE status IN ('connected', 'stopped')")
     .all();
-  sessions.forEach(({ user_id }) => {
-    console.log(`🔄 Restoring bot for user ${user_id}...`);
+
+  sessions.forEach(({ user_id, phone_number }) => {
+    console.log(`🔄 Restoring bot for user ${user_id} (was connected as +${phone_number})...`);
     startBot(user_id);
   });
 }

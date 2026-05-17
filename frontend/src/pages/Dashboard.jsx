@@ -18,13 +18,15 @@ const NAV = [
 
 const STATUS_LABEL = {
   connected:"Bersambung", qr_pending:"Imbas QR",
-  starting:"Memulakan...", disconnected:"Belum Mula", auth_failed:"Auth Gagal",
+  starting:"Memulakan...", disconnected:"Belum Mula",
+  stopped:"Dihentikan", auth_failed:"Auth Gagal",
 };
 
 function statusColor(s) {
   if (s==="connected") return "green";
   if (s==="qr_pending"||s==="starting") return "amber";
   if (s==="auth_failed") return "red";
+  if (s==="stopped") return "gray";
   return "gray";
 }
 
@@ -415,12 +417,11 @@ export default function Dashboard() {
                     <p style={{ color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6 }}>
                       Buka WhatsApp → Tekan <strong>⋮</strong> → <strong>Peranti Terpaut</strong> → <strong>+ Tautkan Peranti</strong>
                     </p>
-                    <div style={{ position:"relative",display:"inline-block",marginBottom:20 }}>
+                    <div style={{ display:"inline-block",marginBottom:20 }}>
                       <div style={{ padding:14,background:"#fff",borderRadius:18,border:"3px solid #22c55e",boxShadow:"0 8px 32px rgba(34,197,94,.2)",display:"inline-block" }}>
                         <img src={status.qr_code} alt="QR WhatsApp" style={{ width:220,height:220,display:"block" }} />
                       </div>
-                      {/* Animated countdown ring */}
-                      <div style={{ position:"absolute",bottom:-16,left:"50%",transform:"translateX(-50%)",whiteSpace:"nowrap" }}>
+                      <div style={{ marginTop:14 }}>
                         <QrCountdown />
                       </div>
                     </div>
@@ -473,9 +474,22 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* DISCONNECTED — Guided Setup */}
-              {(status.status==="disconnected"||status.status==="auth_failed") && !status.is_running && config && (
+              {/* DISCONNECTED / STOPPED — Guided Setup */}
+              {(status.status==="disconnected"||status.status==="stopped"||status.status==="auth_failed") && !status.is_running && config && (
                 <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+
+                  {/* Stopped — had previous session */}
+                  {status.status==="stopped" && status.phone_number && (
+                    <div className="card" style={{ padding:"14px 18px",background:"rgba(34,197,94,.04)",border:"1px solid rgba(34,197,94,.2)" }}>
+                      <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+                        <span style={{ fontSize:22 }}>📱</span>
+                        <div>
+                          <div style={{ fontWeight:700,fontSize:14,color:"var(--green-dark)" }}>Sesi WhatsApp Tersimpan</div>
+                          <div style={{ fontSize:12,color:"var(--muted)",marginTop:2 }}>+{status.phone_number} — Tekan Hidupkan untuk sambung semula tanpa imbas QR</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {status.status==="auth_failed" && (
                     <div className="card" style={{ padding:"14px 18px",background:"rgba(239,68,68,.05)",border:"1px solid rgba(239,68,68,.2)" }}>
@@ -495,6 +509,8 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  {/* Setup steps — only show for fresh accounts */}
+                  {status.status!=="stopped" && (<>
                   {/* Step 1 */}
                   <div className="card" style={{ padding:0,overflow:"hidden",border:config.knowledge?"1.5px solid var(--green)":"1px solid var(--border)" }}>
                     <div style={{ padding:"16px 20px",display:"flex",alignItems:"center",gap:14 }}>
@@ -546,29 +562,37 @@ export default function Dashboard() {
                       {config.has_payment_qr?"Tukar":"Upload"}
                     </button>
                   </div>
+                  </>)}
 
-                  {/* Step 3 — Activate */}
-                  <div className="card" style={{ padding:"20px 22px",background:config.knowledge?"linear-gradient(135deg,rgba(34,197,94,.08),rgba(34,197,94,.03))":"var(--muted-bg)",borderColor:config.knowledge?"rgba(34,197,94,.25)":"var(--border)" }}>
+                  {/* Step 3 — Activate (always shown) */}
+                  <div className="card" style={{ padding:"20px 22px",background:"linear-gradient(135deg,rgba(34,197,94,.08),rgba(34,197,94,.03))",borderColor:"rgba(34,197,94,.25)" }}>
                     <div style={{ display:"flex",alignItems:"center",gap:14 }}>
-                      <div style={{ width:36,height:36,borderRadius:10,background:config.knowledge?"var(--green)":"#d4d4d8",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                        <span style={{ fontWeight:800,fontSize:14,color:"#fff" }}>3</span>
+                      <div style={{ width:36,height:36,borderRadius:10,background:"var(--green)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                        <Play size={16} color="#fff" />
                       </div>
                       <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ fontWeight:700,fontSize:14 }}>Hidupkan Bot</div>
+                        <div style={{ fontWeight:700,fontSize:14 }}>
+                          {status.status==="stopped" ? "Sambung Semula Bot" : "Hidupkan Bot"}
+                        </div>
                         <div style={{ fontSize:12,color:"var(--muted)",marginTop:2 }}>
-                          {config.knowledge?"Bot sedia! Klik untuk sambung WhatsApp":"Lengkapkan langkah 1 dahulu"}
+                          {status.status==="stopped"
+                            ? "Tekan untuk sambung semula — tiada perlu imbas QR"
+                            : config.knowledge ? "Bot sedia! Klik untuk sambung WhatsApp" : "Lengkapkan langkah 1 dahulu"}
                         </div>
                       </div>
-                      <button className="btn btn-primary" onClick={startBot} disabled={!config.knowledge} style={{ flexShrink:0,opacity:config.knowledge?1:.5 }}>
-                        <Play size={15} /> Hidupkan
+                      <button className="btn btn-primary" onClick={startBot}
+                        disabled={status.status!=="stopped" && !config.knowledge}
+                        style={{ flexShrink:0, opacity:(status.status==="stopped"||config.knowledge)?1:.5 }}>
+                        <Play size={15} /> {status.status==="stopped" ? "Sambung" : "Hidupkan"}
                       </button>
                     </div>
-                    {!config.knowledge&&(
+                    {status.status!=="stopped" && !config.knowledge && (
                       <div style={{ marginTop:12,fontSize:12,color:"var(--muted)",padding:"8px 12px",background:"rgba(0,0,0,.04)",borderRadius:8 }}>
                         💡 Tambah pengetahuan (Langkah 1) supaya bot boleh menjawab soalan pelanggan.
                       </div>
                     )}
                   </div>
+                        </div>
                 </div>
               )}
             </div>
