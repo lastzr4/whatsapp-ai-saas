@@ -476,6 +476,26 @@ export default function Dashboard() {
               {/* DISCONNECTED — Guided Setup */}
               {(status.status==="disconnected"||status.status==="auth_failed") && !status.is_running && config && (
                 <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+
+                  {/* Error log if any */}
+                  {status.recent_errors?.length>0 && (
+                    <div className="card" style={{ padding:"14px 18px",background:"rgba(239,68,68,.05)",border:"1px solid rgba(239,68,68,.2)" }}>
+                      <div style={{ fontWeight:700,fontSize:13,color:"var(--red)",marginBottom:8 }}>⚠️ Log Ralat Bot</div>
+                      {status.recent_errors.map((e,i)=>(
+                        <div key={i} style={{ fontSize:12,color:"#b91c1c",padding:"5px 0",borderBottom:i<status.recent_errors.length-1?"1px solid rgba(239,68,68,.1)":"none" }}>
+                          <span style={{ color:"#94a3b8",marginRight:6 }}>{new Date(e.time).toLocaleTimeString("ms-MY")}</span>
+                          {e.error}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {status.status==="auth_failed" && (
+                    <div className="card" style={{ padding:"14px 18px",background:"rgba(239,68,68,.05)",border:"1px solid rgba(239,68,68,.2)" }}>
+                      <div style={{ fontWeight:700,fontSize:13,color:"var(--red)",marginBottom:4 }}>❌ Pengesahan Gagal</div>
+                      <div style={{ fontSize:12,color:"#b91c1c" }}>Sesi WhatsApp tamat atau tidak sah. Sila hidupkan semula dan imbas QR baru.</div>
+                    </div>
+                  )}
                   <div className="card" style={{ padding:"18px 22px",background:"linear-gradient(135deg,rgba(34,197,94,.06),rgba(34,197,94,.02))",borderColor:"rgba(34,197,94,.2)" }}>
                     <div style={{ display:"flex",alignItems:"center",gap:12 }}>
                       <div style={{ width:42,height:42,borderRadius:12,background:"linear-gradient(135deg,#22c55e,#16a34a)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>

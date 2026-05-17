@@ -1,6 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { startBot, stopBot, getBotStatus, isBotRunning } from "./botEngine.js";
+import { startBot, stopBot, getBotStatus, isBotRunning, getBotErrors } from "./botEngine.js";
 
 const router = express.Router();
 
@@ -8,7 +8,8 @@ const router = express.Router();
 router.get("/status", authMiddleware, (req, res) => {
   const status = getBotStatus(req.userId);
   const running = isBotRunning(req.userId);
-  res.json({ ...status, is_running: running });
+  const errors  = getBotErrors(req.userId);
+  res.json({ ...status, is_running: running, recent_errors: errors.slice(0,3) });
 });
 
 // Start bot

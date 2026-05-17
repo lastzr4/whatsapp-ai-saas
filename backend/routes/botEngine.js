@@ -17,9 +17,22 @@ const botInstances        = new Map(); // userId -> client
 const conversationHistories = new Map();
 const reconnectTimers     = new Map(); // userId -> timer
 const reconnectAttempts   = new Map(); // userId -> count
+const botErrorLogs        = new Map(); // userId -> [{time, error}]
 
 const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_DELAY_MS     = 8000; // 8 seconds between retries
+const RECONNECT_DELAY_MS     = 8000;
+
+function logBotError(userId, error) {
+  if (!botErrorLogs.has(userId)) botErrorLogs.set(userId, []);
+  const logs = botErrorLogs.get(userId);
+  logs.unshift({ time: new Date().toISOString(), error: String(error) });
+  if (logs.length > 20) logs.pop(); // keep last 20 errors
+  console.error(`❌ [User ${userId}] ${error}`);
+}
+
+export function getBotErrors(userId) {
+  return botErrorLogs.get(userId) || [];
+}
 
 const PAYMENT_KEYWORDS = [
   "qr", "qr code", "bayar", "bayaran", "pembayaran", "transfer",
@@ -144,7 +157,7 @@ export async function startBot(userId) {
   console.log(`🚀 Starting bot for user ${userId}...`);
   updateSessionStatus(userId, "starting");
 
-  const dataRoot = process.env.DATA_ROOT || path.join(__dirname, "../..");
+  const dataRoot = process.env.DATA_PATH || process.env.DATA_ROOT || path.join(__dirname, "../..");
   fs.mkdirSync(path.join(dataRoot, `sessions/user_${userId}`), { recursive: true });
 
   const client = new Client({
@@ -184,22 +197,20 @@ export async function startBot(userId) {
     updateSessionStatus(userId, "connected", phone, "");
   });
 
-  client.on("auth_failure", () => {
-    console.log(`❌ Auth failed for user ${userId}`);
+  client.on("auth_failure", (msg) => {
+    logBotError(userId, `Auth failed: ${msg}`);
     updateSessionStatus(userId, "auth_failed");
     botInstances.delete(userId);
-    // Don't auto-reconnect on auth failure — user needs to re-scan
   });
 
   client.on("disconnected", (reason) => {
     console.log(`🔌 Bot disconnected for user ${userId} — reason: ${reason}`);
     botInstances.delete(userId);
-
-    // Auto-reconnect unless it was a deliberate logout
     if (reason === "LOGOUT") {
       updateSessionStatus(userId, "disconnected");
       reconnectAttempts.delete(userId);
     } else {
+      logBotError(userId, `Disconnected: ${reason}`);
       scheduleReconnect(userId);
     }
   });
@@ -323,6 +334,26 @@ export async function startBot(userId) {
   });
 
   client.initialize();
+
+  // ── Catch initialization errors ───────────────────────────────────────────
+  client.on("disconnected", (reason) => {
+    // already handled above
+  });
+
+  // Catch unhandled promise from initialize()
+  const initPromise = new Promise((_, reject) => {
+    client.once("auth_failure", (msg) => reject(new Error(`Auth failure: ${msg}`)));
+  });
+
+  Promise.race([
+    new Promise(r => client.once("ready", r)),
+    new Promise(r => client.once("qr", r)),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout: bot did not start within 120s")), 120000)),
+  ]).catch(err => {
+    console.error(`❌ Bot init error for user ${userId}:`, err.message);
+    updateSessionStatus(userId, "disconnected");
+    botInstances.delete(userId);
+  });
 }
 
 // ── Stop bot ──────────────────────────────────────────────────────────────────
