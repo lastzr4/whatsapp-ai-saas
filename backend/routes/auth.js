@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import db from "../db/database.js";
-import { sendVerificationEmail, sendPasswordResetEmail } from "../services/email.js";
+import { sendVerificationEmail, sendPasswordResetEmail, isEmailEnabled } from "../services/email.js";
 
 const router = express.Router();
 
@@ -21,9 +21,72 @@ function createAuthToken(userId, type, hoursValid = 24) {
   return token;
 }
 
-function isEmailEnabled() {
-  return !!(process.env.SMTP_USER && process.env.SMTP_PASS);
-}
+// ── Google OAuth ──────────────────────────────────────────────────────────────
+router.post("/google", async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: "Google credential diperlukan" });
+
+    // Decode JWT from Google (verify with Google's public key)
+    const parts = credential.split(".");
+    if (parts.length !== 3) return res.status(400).json({ error: "Token tidak sah" });
+
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+
+    // Verify audience
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (clientId && payload.aud !== clientId)
+      return res.status(400).json({ error: "Token tidak sah" });
+
+    // Verify expiry
+    if (payload.exp < Math.floor(Date.now() / 1000))
+      return res.status(400).json({ error: "Token Google tamat tempoh" });
+
+    const { email, name, email_verified, sub: googleId } = payload;
+    if (!email || !email_verified)
+      return res.status(400).json({ error: "Email Google tidak disahkan" });
+
+    // Find or create user
+    let user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
+
+    if (!user) {
+      // New user via Google — auto-verified, no password needed
+      const planLimits = db.prepare("SELECT * FROM plan_limits WHERE plan = 'basic'").get();
+      const result = db.prepare(
+        "INSERT INTO users (email, password, name, is_verified, plan, max_messages, max_logs, max_numbers) VALUES (?, ?, ?, 1, 'basic', ?, ?, ?)"
+      ).run(email, `google_${googleId}`, name || email.split("@")[0],
+        planLimits?.max_messages ?? 50, planLimits?.max_logs ?? 5, planLimits?.max_numbers ?? 1);
+
+      user = db.prepare("SELECT * FROM users WHERE id = ?").get(result.lastInsertRowid);
+
+      // Create bot_configs and bot_sessions
+      db.prepare("INSERT INTO bot_configs (user_id, bot_name) VALUES (?, ?)").run(user.id, "AI Assistant");
+      db.prepare("INSERT INTO bot_sessions (user_id) VALUES (?)").run(user.id);
+      console.log(`✅ New Google user: ${email}`);
+    } else {
+      // Existing user — mark as verified if not already
+      if (!user.is_verified) {
+        db.prepare("UPDATE users SET is_verified = 1 WHERE id = ?").run(user.id);
+        user.is_verified = 1;
+      }
+    }
+
+    if (!user.is_active)
+      return res.status(403).json({ error: "Akaun anda telah digantung. Hubungi admin." });
+
+    // Create session
+    const sessionToken = generateToken();
+    db.prepare("INSERT INTO login_sessions (user_id, session_token, user_agent, ip_address) VALUES (?, ?, ?, ?)")
+      .run(user.id, sessionToken, req.headers["user-agent"] || "", req.ip || "");
+
+    const token = jwt.sign({ userId: user.id, sessionToken }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    console.log(`✅ Google login: ${email} (admin: ${!!user.is_admin})`);
+    res.json({ token, name: user.name, email: user.email, plan: user.plan, is_admin: !!user.is_admin });
+  } catch (err) {
+    console.error("Google auth error:", err.message);
+    res.status(500).json({ error: "Ralat pengesahan Google" });
+  }
+});
 
 // ── Register ──────────────────────────────────────────────────────────────────
 router.post("/register", async (req, res) => {
@@ -36,12 +99,17 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Kata laluan minimum 6 aksara" });
 
     const hashed = await bcrypt.hash(password, 10);
-    // Auto-verify if email disabled or skip flag set
     const isVerified = (!isEmailEnabled() || process.env.SKIP_EMAIL_VERIFY === "true") ? 1 : 0;
 
+    // Get plan limits for basic (default plan)
+    const planLimits = db.prepare("SELECT * FROM plan_limits WHERE plan = 'basic'").get();
+    const maxMessages = planLimits?.max_messages ?? 50;
+    const maxLogs     = planLimits?.max_logs     ?? 5;
+    const maxNumbers  = planLimits?.max_numbers  ?? 1;
+
     const result = db.prepare(
-      "INSERT INTO users (email, password, name, is_verified) VALUES (?, ?, ?, ?)"
-    ).run(email, hashed, name, isVerified);
+      "INSERT INTO users (email, password, name, is_verified, plan, max_messages, max_logs, max_numbers) VALUES (?, ?, ?, ?, 'basic', ?, ?, ?)"
+    ).run(email, hashed, name, isVerified, maxMessages, maxLogs, maxNumbers);
 
     const userId = result.lastInsertRowid;
 
