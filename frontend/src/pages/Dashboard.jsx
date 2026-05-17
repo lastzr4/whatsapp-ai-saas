@@ -133,7 +133,22 @@ export default function Dashboard() {
     pollRef.current = setInterval(fetchStatus, 3000);
     return () => clearInterval(pollRef.current);
   }, []);
-  const prevStatusRef = useRef(null);
+  const startingTimerRef = useRef(null);
+  const [startingSeconds, setStartingSeconds] = useState(0);
+
+  // Track how long bot has been "starting" — timeout after 45s
+  useEffect(() => {
+    if (status.status === "starting") {
+      setStartingSeconds(0);
+      startingTimerRef.current = setInterval(() => {
+        setStartingSeconds(s => s + 1);
+      }, 1000);
+    } else {
+      clearInterval(startingTimerRef.current);
+      setStartingSeconds(0);
+    }
+    return () => clearInterval(startingTimerRef.current);
+  }, [status.status]);
   useEffect(() => {
     const prev = prevStatusRef.current;
     // Redirect to Sambungan tab when QR becomes ready or bot connects
@@ -439,12 +454,31 @@ export default function Dashboard() {
 
               {/* STARTING */}
               {status.status==="starting" && (
-                <div className="card" style={{ padding:"48px 24px",textAlign:"center" }}>
-                  <div style={{ width:64,height:64,borderRadius:"50%",background:"rgba(34,197,94,.1)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:20 }}>
-                    <div className="spinner" style={{ width:28,height:28,borderColor:"rgba(34,197,94,.2)",borderTopColor:"var(--green)" }} />
-                  </div>
-                  <h2 style={{ fontWeight:700,fontSize:17,marginBottom:8 }}>Sedang Memulakan Bot...</h2>
-                  <p style={{ color:"var(--muted)",fontSize:13 }}>Kod QR akan muncul dalam beberapa saat</p>
+                <div className="card" style={{ padding:"36px 24px",textAlign:"center" }}>
+                  {startingSeconds < 45 ? (<>
+                    <div style={{ width:64,height:64,borderRadius:"50%",background:"rgba(34,197,94,.1)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:20 }}>
+                      <div className="spinner" style={{ width:28,height:28,borderColor:"rgba(34,197,94,.2)",borderTopColor:"var(--green)" }} />
+                    </div>
+                    <h2 style={{ fontWeight:700,fontSize:17,marginBottom:8 }}>Sedang Memulakan Bot...</h2>
+                    <p style={{ color:"var(--muted)",fontSize:13,marginBottom:16 }}>Kod QR akan muncul dalam beberapa saat</p>
+                    {/* Progress bar */}
+                    <div style={{ maxWidth:200,margin:"0 auto 8px",height:4,borderRadius:99,background:"var(--border)",overflow:"hidden" }}>
+                      <div style={{ height:"100%",background:"var(--green)",borderRadius:99,width:`${(startingSeconds/45)*100}%`,transition:"width 1s linear" }} />
+                    </div>
+                    <p style={{ fontSize:12,color:"var(--muted)" }}>{45 - startingSeconds} saat lagi...</p>
+                  </>) : (<>
+                    <div style={{ width:64,height:64,borderRadius:"50%",background:"rgba(239,68,68,.1)",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:20 }}>
+                      <AlertCircle size={28} style={{ color:"var(--red)" }} />
+                    </div>
+                    <h2 style={{ fontWeight:700,fontSize:17,marginBottom:8 }}>Mengambil masa terlalu lama</h2>
+                    <p style={{ color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6 }}>
+                      Bot mengambil masa lebih lama dari biasa.<br/>Cuba mulakan semula atau cuba sebentar lagi.
+                    </p>
+                    <div className="btn-row" style={{ justifyContent:"center" }}>
+                      <button className="btn btn-primary" onClick={restartBot}><RotateCw size={15}/> Cuba Semula</button>
+                      <button className="btn btn-secondary" onClick={stopBot}><Square size={15}/> Berhenti</button>
+                    </div>
+                  </>)}
                 </div>
               )}
 
