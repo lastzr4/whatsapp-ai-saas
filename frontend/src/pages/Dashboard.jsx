@@ -110,7 +110,7 @@ export default function Dashboard() {
   const [configError, setConfigError]   = useState(null);
   const [logs, setLogs]                 = useState([]);
   const [selectedLogs, setSelectedLogs] = useState(new Set());
-  const [qrTs, setQrTs]                 = useState(Date.now());
+  const [qrBlobUrl, setQrBlobUrl]       = useState(null);
   const [toast, setToast]               = useState(null);
   const [saving, setSaving]             = useState(false);
   const pollRef          = useRef(null);
@@ -121,11 +121,24 @@ export default function Dashboard() {
   const showToast = (text, type="success") => setToast({ text, type });
 
   async function fetchStatus() { try { setStatus(await api("GET","/bot/status")); } catch {} }
+  async function fetchQrImage() {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/config/payment-qr-image?t=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) { setQrBlobUrl(null); return; }
+      const blob = await res.blob();
+      setQrBlobUrl(URL.createObjectURL(blob));
+    } catch { setQrBlobUrl(null); }
+  }
+
   async function fetchConfig() {
     setConfigLoading(true); setConfigError(null);
     try {
       const c = await api("GET","/config");
       setConfig(c);
+      if (c.has_payment_qr) fetchQrImage();
     } catch(e) { setConfigError(e.message); }
     setConfigLoading(false);
   }
@@ -224,8 +237,7 @@ export default function Dashboard() {
     // 4. Upload
     try {
       await uploadFile("/config/upload-qr","paymentQr",file);
-      setQrTs(Date.now());
-      await fetchConfig();
+      await fetchConfig(); // this will also call fetchQrImage
       showToast("QR berjaya dimuat naik! ✅");
     } catch(err) { showToast(err.message,"error"); }
   }
@@ -715,27 +727,19 @@ export default function Dashboard() {
                   <div style={{ textAlign:"center",marginBottom:20 }}>
                     <div style={{ position:"relative",display:"inline-block" }}>
                       <div style={{ borderRadius:16,border:"2px solid var(--border)",background:"#fff",padding:16,display:"inline-block",boxShadow:"0 4px 16px rgba(0,0,0,.06)" }}>
-                        <img
-                          key={qrTs}
-                          src={`/api/config/payment-qr-image?t=${qrTs}&uid=${Date.now()}`}
-                          alt="QR Pembayaran"
-                          style={{ width:200,height:200,objectFit:"contain",display:"block",borderRadius:8 }}
-                          onError={e=>{
-                            e.target.style.display="none";
-                            const err = document.getElementById("qr-err-box");
-                            if(err) err.style.display="flex";
-                          }}
-                          onLoad={e=>{
-                            e.target.style.display="block";
-                            const err = document.getElementById("qr-err-box");
-                            if(err) err.style.display="none";
-                          }}
-                        />
-                        <div id="qr-err-box" style={{ width:200,height:200,display:"none",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,background:"#f5f5f4",borderRadius:8,padding:12 }}>
-                          <Camera size={32} style={{ color:"#d4d4d8" }} />
-                          <span style={{ fontSize:12,color:"var(--muted)",textAlign:"center",lineHeight:1.5 }}>Gambar tidak dapat dimuatkan</span>
-                          <button className="btn btn-default btn-sm" onClick={()=>setQrTs(Date.now())}>Cuba Semula</button>
-                        </div>
+                        {qrBlobUrl ? (
+                          <img
+                            src={qrBlobUrl}
+                            alt="QR Pembayaran"
+                            style={{ width:200,height:200,objectFit:"contain",display:"block",borderRadius:8 }}
+                          />
+                        ) : (
+                          <div style={{ width:200,height:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,background:"#f5f5f4",borderRadius:8,padding:12 }}>
+                            <Camera size={32} style={{ color:"#d4d4d8" }} />
+                            <span style={{ fontSize:12,color:"var(--muted)",textAlign:"center",lineHeight:1.5 }}>Memuatkan...</span>
+                            <button className="btn btn-default btn-sm" onClick={fetchQrImage}>Cuba Semula</button>
+                          </div>
+                        )}
                       </div>
                       <div style={{ position:"absolute",top:-8,right:-8,width:26,height:26,borderRadius:99,background:"var(--green)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(34,197,94,.4)" }}>
                         <CheckCircle2 size={14} color="#fff" />
