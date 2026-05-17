@@ -6,10 +6,11 @@ const router = express.Router();
 
 // Get bot status + QR code
 router.get("/status", authMiddleware, (req, res) => {
-  const status = getBotStatus(req.userId);
+  const status  = getBotStatus(req.userId);
   const running = isBotRunning(req.userId);
-  const errors  = getBotErrors(req.userId);
-  res.json({ ...status, is_running: running, recent_errors: errors.slice(0,3) });
+  // Don't expose raw error strings to frontend — security risk
+  // Errors are visible in Railway logs only
+  res.json({ ...status, is_running: running });
 });
 
 // Start bot
