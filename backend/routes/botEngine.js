@@ -161,6 +161,20 @@ export async function startBot(userId) {
   const sessionPath = path.join(dataRoot, "sessions");
   fs.mkdirSync(path.join(sessionPath, `user_${userId}`), { recursive: true });
 
+  // ── Delete Chromium profile locks (leftover from crashed sessions) ──────────
+  const profileDir = path.join(sessionPath, `user_${userId}`, `.wwebjs_auth`, `session-user_${userId}`);
+  const lockFiles = ["SingletonLock", "SingletonCookie", "SingletonSocket"];
+  lockFiles.forEach(lf => {
+    const lockPath = path.join(profileDir, lf);
+    try { if (fs.existsSync(lockPath)) { fs.unlinkSync(lockPath); console.log(`🔓 Deleted lock: ${lockPath}`); } } catch {}
+  });
+  // Also check root session dir
+  const rootLocks = [
+    path.join(sessionPath, `.wwebjs_auth`, `session-user_${userId}`, "SingletonLock"),
+    path.join(sessionPath, `user_${userId}`, "SingletonLock"),
+  ];
+  rootLocks.forEach(lp => { try { if (fs.existsSync(lp)) fs.unlinkSync(lp); } catch {} });
+
   let client;
   try {
     client = new Client({
@@ -324,6 +338,11 @@ export async function startBot(userId) {
   try {
     await client.initialize();
   } catch (err) {
+    const shortMsg = err.message?.includes("profile appears to be in use")
+      ? "Profil Chromium terkunci. Cuba semula..."
+      : err.message?.includes("Failed to launch")
+      ? "Gagal lancarkan pelayar. Cuba semula..."
+      : `Initialize gagal: ${err.message?.slice(0,80)}`;
     logBotError(userId, `Initialize failed: ${err.message}`);
     console.error(`❌ client.initialize() failed for user ${userId}:`, err.message);
     botInstances.delete(userId);

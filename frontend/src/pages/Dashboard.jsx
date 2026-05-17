@@ -18,7 +18,7 @@ const NAV = [
 
 const STATUS_LABEL = {
   connected:"Bersambung", qr_pending:"Imbas QR",
-  starting:"Memulakan...", disconnected:"Terputus", auth_failed:"Auth Gagal",
+  starting:"Memulakan...", disconnected:"Belum Mula", auth_failed:"Auth Gagal",
 };
 
 function statusColor(s) {
@@ -357,7 +357,7 @@ export default function Dashboard() {
             </h1>
             <p>WhatsApp AI Bot</p>
           </div>
-          <StatusBadge status={status.status} />
+          {status.status !== "disconnected" && <StatusBadge status={status.status} />}
         </header>
 
         {/* Content */}
@@ -484,7 +484,9 @@ export default function Dashboard() {
                       {status.recent_errors.map((e,i)=>(
                         <div key={i} style={{ fontSize:12,color:"#b91c1c",padding:"5px 0",borderBottom:i<status.recent_errors.length-1?"1px solid rgba(239,68,68,.1)":"none" }}>
                           <span style={{ color:"#94a3b8",marginRight:6 }}>{new Date(e.time).toLocaleTimeString("ms-MY")}</span>
-                          {e.error}
+                          <span style={{ wordBreak:"break-word" }}>
+                            {e.error?.length > 120 ? e.error.slice(0,120)+"..." : e.error}
+                          </span>
                         </div>
                       ))}
                     </div>
