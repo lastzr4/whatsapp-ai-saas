@@ -92,6 +92,42 @@ export async function sendPasswordResetEmail(email, name, token) {
   `);
 }
 
+export async function sendLimitReachedEmail(email, name, limit, plan) {
+  const APP_NAME = process.env.APP_NAME || "JomReply.ai";
+  const APP_URL  = process.env.APP_URL  || "https://jomreply.com";
+  const planLabel = { basic:"Basic", starter:"Starter", pro:"Pro" }[plan] || plan;
+  // Reset on 1st of next month
+  const now = new Date();
+  const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const resetStr = resetDate.toLocaleDateString("ms-MY", { day:"numeric", month:"long", year:"numeric" });
+
+  await sendEmail(email, `⚠️ Had Mesej Bulanan Dicapai — ${APP_NAME}`, `
+    <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;background:#f9fafb;border-radius:12px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="background:linear-gradient(135deg,#f59e0b,#d97706);width:56px;height:56px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:12px;">⚠️</div>
+        <h1 style="color:#0f172a;font-size:20px;margin:0;">${APP_NAME}</h1>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:28px;border:1px solid #e2e8f0;">
+        <h2 style="color:#0f172a;font-size:17px;margin-top:0;">Had Mesej Dicapai</h2>
+        <p style="color:#64748b;line-height:1.6;">Hai <strong>${name}</strong>,</p>
+        <p style="color:#64748b;line-height:1.6;">Bot WhatsApp anda telah mencapai had mesej bulanan untuk plan <strong>${planLabel}</strong>.</p>
+        <div style="background:#fef9c3;border-radius:10px;padding:16px;margin:20px 0;text-align:center;border:1px solid #fde68a;">
+          <div style="font-size:32px;font-weight:900;color:#92400e;">${limit.toLocaleString()}</div>
+          <div style="font-size:13px;color:#78350f;margin-top:4px;">mesej digunakan bulan ini</div>
+        </div>
+        <p style="color:#64748b;line-height:1.6;">Bot anda <strong>masih aktif</strong> tetapi tidak akan membalas mesej baharu sehingga had direset.</p>
+        <div style="background:#f0fdf4;border-radius:8px;padding:12px 16px;margin:16px 0;">
+          <p style="color:#15803d;font-size:13px;margin:0;">🔄 Had akan reset pada <strong>${resetStr}</strong> (1 haribulan bulan hadapan)</p>
+        </div>
+        <div style="text-align:center;margin-top:20px;">
+          <a href="${APP_URL}/dashboard" style="background:linear-gradient(135deg,#25d366,#128c5e);color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:700;font-size:14px;display:inline-block;">Naik Taraf Plan →</a>
+        </div>
+      </div>
+      <p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:16px;">${APP_NAME} · <a href="${APP_URL}" style="color:#25d366;">${APP_URL}</a></p>
+    </div>
+  `);
+}
+
 export async function verifyEmailConfig() {
   if (!isEmailEnabled()) {
     console.warn("⚠️  Email not configured — users will be auto-verified. Set RESEND_API_KEY to enable email.");

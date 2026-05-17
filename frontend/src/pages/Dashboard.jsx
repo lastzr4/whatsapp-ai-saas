@@ -290,7 +290,6 @@ export default function Dashboard() {
           <div style={{ fontWeight:600, color:"var(--muted)", marginBottom:8, textTransform:"uppercase", letterSpacing:".05em", fontSize:10.5 }}>
             Penggunaan Bulan Ini
           </div>
-          {/* Messages */}
           <div style={{ marginBottom:8 }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
               <span style={{ color:"var(--muted)" }}>💬 Mesej</span>
@@ -299,9 +298,12 @@ export default function Dashboard() {
               </span>
             </div>
             <div style={{ height:4, borderRadius:99, background:"var(--border)", overflow:"hidden" }}>
-              <div style={{ height:"100%", borderRadius:99, width:`${Math.min(100,(config.msg_this_month/config.max_messages)*100)}%`, background: config.msg_remaining===0?"var(--red)":"var(--green)", transition:"width .3s" }} />
+              <div style={{ height:"100%", borderRadius:99, width:`${Math.min(100,(config.msg_this_month/config.max_messages)*100)}%`, background: config.msg_remaining===0?"var(--red)":config.msg_this_month/config.max_messages>0.8?"var(--amber)":"var(--green)", transition:"width .3s" }} />
             </div>
-            {config.msg_remaining===0 && <div style={{ fontSize:10.5,color:"var(--red)",marginTop:3 }}>Had dicapai!</div>}
+            {config.msg_remaining===0
+              ? <div style={{ fontSize:10.5,color:"var(--red)",marginTop:3 }}>Had dicapai! Reset 1hb bulan depan.</div>
+              : <div style={{ fontSize:10.5,color:"var(--muted)",marginTop:3 }}>{config.msg_remaining} baki · Reset 1hb bulan depan</div>
+            }
           </div>
           <div style={{ display:"flex", justifyContent:"space-between", fontSize:11.5 }}>
             <span style={{ color:"var(--muted)" }}>Plan</span>

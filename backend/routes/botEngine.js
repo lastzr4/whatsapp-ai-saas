@@ -291,11 +291,21 @@ export async function startBot(userId) {
       `).get(userId).c;
       const maxMsg = user?.max_messages || 50;
       if (msgThisMonth >= maxMsg) {
-        console.log(`⚠️ User ${userId} monthly limit reached (${msgThisMonth}/${maxMsg})`);
-        await safeSend(() => message.reply(
-          `⚠️ Had mesej bulanan anda (${maxMsg} mesej) telah dicapai. Sila naik taraf plan anda.`
-        ));
-        return;
+        console.log(`⚠️ User ${userId} monthly limit reached (${msgThisMonth}/${maxMsg}) — ignoring silently`);
+        // Send email notification ONCE (when exactly at limit)
+        if (msgThisMonth === maxMsg) {
+          try {
+            const userInfo = db.prepare("SELECT email, name, plan FROM users WHERE id = ?").get(userId);
+            if (userInfo?.email) {
+              const { sendLimitReachedEmail } = await import("../services/email.js");
+              await sendLimitReachedEmail(userInfo.email, userInfo.name, maxMsg, userInfo.plan);
+              console.log(`📧 Limit notification sent to ${userInfo.email}`);
+            }
+          } catch (emailErr) {
+            console.error("Limit email failed:", emailErr.message);
+          }
+        }
+        return; // Ignore silently — don't reply to customer
       }
 
       // ── Payment QR ───────────────────────────────────────────────────────
