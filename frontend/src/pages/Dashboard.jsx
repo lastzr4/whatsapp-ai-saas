@@ -133,15 +133,25 @@ export default function Dashboard() {
     pollRef.current = setInterval(fetchStatus, 3000);
     return () => clearInterval(pollRef.current);
   }, []);
+  const prevStatusRef = useRef(null);
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    // Redirect to Sambungan tab when QR becomes ready or bot connects
+    if (prev !== null && prev !== status.status) {
+      if (status.status === "qr_pending" || status.status === "connected") {
+        setTab(0);
+        if (status.status === "qr_pending") showToast("QR sedia! Sila imbas sekarang 📱","info");
+        if (status.status === "connected")   showToast("WhatsApp Bersambung! 🎉");
+      }
+    }
+    prevStatusRef.current = status.status;
+  }, [status.status]);
+
   useEffect(() => { if (tab===4) fetchLogs(); }, [tab]);
 
-  const startBot = async () => {
-    await api("POST","/bot/start");
-    setTab(0); // redirect to connection tab to show QR
-    showToast("Bot sedang dihidupkan...","info");
-  };
+  const startBot   = async () => { await api("POST","/bot/start"); showToast("Bot sedang dihidupkan...","info"); };
   const stopBot    = async () => { await api("POST","/bot/stop");    showToast("Bot dihentikan","error"); };
-  const restartBot = async () => { await api("POST","/bot/restart"); setTab(0); showToast("Bot dimulakan semula...","info"); };
+  const restartBot = async () => { await api("POST","/bot/restart"); showToast("Bot dimulakan semula...","info"); };
 
   async function saveConfig() {
     setSaving(true);
