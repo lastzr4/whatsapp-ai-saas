@@ -35,20 +35,14 @@ function deleteOldQr(userId) {
 // ── Multer storage ────────────────────────────────────────────────────────────
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(getDataRoot(), `uploads/${req.userId}`);
-    fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
+    // Use temp dir — userId may not be set yet during multipart parsing
+    const tmpDir = path.join(getDataRoot(), "uploads", "_tmp");
+    fs.mkdirSync(tmpDir, { recursive: true });
+    cb(null, tmpDir);
   },
   filename: (req, file, cb) => {
-    if (file.fieldname === "paymentQr") {
-      // Delete old QR first (any extension)
-      deleteOldQr(req.userId);
-      // Save with original extension
-      const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
-      cb(null, `payment-qr${ext}`);
-    } else {
-      cb(null, `knowledge-${Date.now()}.txt`);
-    }
+    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
+    cb(null, `payment-qr-tmp-${Date.now()}${ext}`);
   },
 });
 
@@ -123,12 +117,30 @@ router.put("/", authMiddleware, (req, res) => {
 });
 
 // ── Upload QR image ───────────────────────────────────────────────────────────
-router.post("/upload-qr", authMiddleware, (req, res, next) => {
+router.post("/upload-qr", authMiddleware, (req, res) => {
   upload.single("paymentQr")(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: "Tiada fail diupload" });
-    console.log(`✅ QR uploaded for user ${req.userId}: ${req.file.filename} (${req.file.size} bytes)`);
-    res.json({ success: true, filename: req.file.filename, size: req.file.size });
+
+    // Move from tmp to correct user folder
+    const ext = path.extname(req.file.originalname).toLowerCase() || ".jpg";
+    const userDir = path.join(getDataRoot(), `uploads/${req.userId}`);
+    fs.mkdirSync(userDir, { recursive: true });
+
+    // Delete old QR first
+    deleteOldQr(req.userId);
+
+    const finalPath = path.join(userDir, `payment-qr${ext}`);
+    try {
+      fs.renameSync(req.file.path, finalPath);
+    } catch(e) {
+      // renameSync fails across filesystems — use copy+delete
+      fs.copyFileSync(req.file.path, finalPath);
+      fs.unlinkSync(req.file.path);
+    }
+
+    console.log(`✅ QR saved for user ${req.userId}: ${finalPath} (${req.file.size} bytes)`);
+    res.json({ success: true, filename: `payment-qr${ext}`, size: req.file.size });
   });
 });
 
@@ -158,7 +170,7 @@ router.get("/payment-qr-image", authMiddleware, (req, res) => {
 });
 
 // ── Upload knowledge .txt ─────────────────────────────────────────────────────
-router.post("/upload-knowledge", authMiddleware, (req, res, next) => {
+router.post("/upload-knowledge", authMiddleware, (req, res) => {
   upload.single("knowledge")(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: "Tiada fail diupload" });
@@ -167,7 +179,7 @@ router.post("/upload-knowledge", authMiddleware, (req, res, next) => {
       db.prepare("UPDATE bot_configs SET knowledge = ? WHERE user_id = ?").run(content, req.userId);
       fs.unlinkSync(req.file.path);
       res.json({ success: true, characters: content.length });
-    } catch (e) {
+    } catch(e) {
       res.status(500).json({ error: e.message });
     }
   });
