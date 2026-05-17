@@ -65,7 +65,7 @@ export function initDb() {
       plan TEXT DEFAULT 'basic',
       is_active INTEGER DEFAULT 1,
       is_admin INTEGER DEFAULT 0,
-      max_messages INTEGER DEFAULT 1000,
+      max_messages INTEGER DEFAULT 50,
       notes TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now'))
     );
@@ -142,6 +142,14 @@ export function initDb() {
       ('pro',     1000, 100, 5)
     ` },
     { name: "rename_max_messages_default", sql: "UPDATE users SET max_messages = 50 WHERE max_messages = 1000 AND plan = 'basic'" },
+    { name: "sync_existing_users_with_plan_limits", sql: `
+      UPDATE users SET
+        max_messages = (SELECT max_messages FROM plan_limits WHERE plan = users.plan),
+        max_logs     = (SELECT max_logs     FROM plan_limits WHERE plan = users.plan),
+        max_numbers  = (SELECT max_numbers  FROM plan_limits WHERE plan = users.plan)
+      WHERE is_admin = 0
+        AND EXISTS (SELECT 1 FROM plan_limits WHERE plan = users.plan)
+    ` },
   ];
 
   for (const m of migrations) {
