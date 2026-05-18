@@ -43,14 +43,18 @@ function GoogleBtn({ onSuccess }) {
 
   return (
     <>
-      <div style={ position:"relative" }>
-        {loading && <div style={ position:"absolute",inset:0,background:"rgba(255,255,255,.7)",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:4,zIndex:1 }><span className="spinner" style={ width:20,height:20,borderColor:"rgba(0,0,0,.1)",borderTopColor:"#4285F4" }/></div>}
-        <div ref={divRef} style={ width:"100%", minHeight:44 }/>
+      <div style={{ position:"relative" }}>
+        {loading && (
+          <div style={{ position:"absolute",inset:0,background:"rgba(255,255,255,.7)",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:4,zIndex:1 }}>
+            <span className="spinner" style={{ width:20,height:20,borderColor:"rgba(0,0,0,.1)",borderTopColor:"#4285F4" }}/>
+          </div>
+        )}
+        <div ref={divRef} style={{ width:"100%", minHeight:44 }}/>
       </div>
-      <div style={ display:"flex",alignItems:"center",gap:10,margin:"16px 0" }>
-        <div style={ flex:1,height:1,background:"#e4e4e7" }/>
-        <span style={ fontSize:12,color:"#71717a",fontWeight:500 }>atau</span>
-        <div style={ flex:1,height:1,background:"#e4e4e7" }/>
+      <div style={{ display:"flex",alignItems:"center",gap:10,margin:"16px 0" }}>
+        <div style={{ flex:1,height:1,background:"#e4e4e7" }}/>
+        <span style={{ fontSize:12,color:"#71717a",fontWeight:500 }}>atau</span>
+        <div style={{ flex:1,height:1,background:"#e4e4e7" }}/>
       </div>
     </>
   );
