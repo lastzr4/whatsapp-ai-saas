@@ -25,6 +25,7 @@ function GoogleBtn({ onSuccess }) {
           finally { setLoading(false); }
         },
         auto_select: false,
+        ux_mode: "popup",
       });
       setReady(true);
     };
@@ -40,7 +41,15 @@ function GoogleBtn({ onSuccess }) {
 
   return (
     <>
-      <button type="button" onClick={() => window.google?.accounts.id.prompt()} disabled={loading || !ready}
+      <button type="button" onClick={() => {
+          window.google?.accounts.id.revoke("", () => {});
+          window.google?.accounts.id.prompt((n) => {
+            if (n.isNotDisplayed() || n.isSkippedMoment()) {
+              const p = new URLSearchParams({ client_id: gid, redirect_uri: window.location.origin+"/auth/google/callback", response_type: "token id_token", scope: "openid email profile", prompt: "select_account", nonce: Math.random().toString(36).slice(2) });
+              window.location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + p;
+            }
+          });
+        }} disabled={loading || !ready}
         style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"11px 16px",borderRadius:10,border:"1.5px solid #e4e4e7",background:"#fff",cursor:"pointer",fontSize:14,fontWeight:600,color:"#374151",transition:"box-shadow .15s",boxShadow:"0 1px 3px rgba(0,0,0,.06)" }}
         onMouseEnter={e=>e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,.12)"}
         onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,.06)"}>

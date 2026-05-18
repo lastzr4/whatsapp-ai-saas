@@ -28,6 +28,44 @@ router.get("/google-config", (req, res) => {
   });
 });
 
+// ── Google OAuth callback (redirect flow for incognito) ───────────────────────
+router.get("/google/callback", (req, res) => {
+  // Serve a page that extracts id_token from URL fragment and posts to backend
+  res.send(`<!DOCTYPE html>
+<html>
+<head><title>JomReply - Google Login</title></head>
+<body>
+<script>
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  const idToken = params.get('id_token');
+  if (idToken) {
+    fetch('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: idToken })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify({ name: data.name, email: data.email, is_admin: data.is_admin }));
+        window.location.href = data.is_admin ? '/admin' : '/dashboard';
+      } else {
+        alert(data.error || 'Login gagal');
+        window.location.href = '/login';
+      }
+    })
+    .catch(() => { window.location.href = '/login'; });
+  } else {
+    window.location.href = '/login';
+  }
+</script>
+<p style="font-family:sans-serif;text-align:center;margin-top:40px;color:#555">Memproses login Google...</p>
+</body>
+</html>`);
+});
+
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 router.post("/google", async (req, res) => {
   try {

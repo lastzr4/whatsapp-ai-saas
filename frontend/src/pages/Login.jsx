@@ -29,6 +29,7 @@ function GoogleBtn({ onSuccess }) {
         },
         auto_select: false,
         cancel_on_tap_outside: true,
+        ux_mode: "popup",
       });
       setReady(true);
     };
@@ -42,8 +43,26 @@ function GoogleBtn({ onSuccess }) {
   }
 
   function handleClick() {
-    if (!gid || !window.google) return;
-    window.google.accounts.id.prompt();
+    if (!gid) return;
+    // Force account selection every time — user can pick different account
+    window.google?.accounts.id.revoke("", () => {});
+    // Try popup first; fallback to OAuth redirect for incognito/blocked cookies
+    if (window.google?.accounts) {
+      window.google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          // Popup blocked (incognito, strict cookie settings) — use redirect
+          const params = new URLSearchParams({
+            client_id: gid,
+            redirect_uri: window.location.origin + "/auth/google/callback",
+            response_type: "token id_token",
+            scope: "openid email profile",
+            prompt: "select_account",
+            nonce: Math.random().toString(36).slice(2),
+          });
+          window.location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + params;
+        }
+      });
+    }
   }
 
   if (!gid) return null;
