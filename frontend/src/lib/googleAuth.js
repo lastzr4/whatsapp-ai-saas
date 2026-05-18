@@ -1,4 +1,4 @@
-// Singleton — fetches Google Client ID once and caches it
+// Singleton — fetches Google Client ID once on module load
 let cachedGid = null;
 let fetched = false;
 const listeners = [];
@@ -10,18 +10,14 @@ export function onGoogleReady(cb) {
   listeners.push(cb);
 }
 
-// Fetch immediately when this module loads
+function resolve(id) {
+  cachedGid = id || null;
+  fetched = true;
+  listeners.forEach(cb => cb(cachedGid));
+  listeners.length = 0;
+}
+
 fetch("/api/auth/google-config")
   .then(r => r.json())
-  .then(d => {
-    cachedGid = d.clientId || null;
-    fetched = true;
-    listeners.forEach(cb => cb(cachedGid));
-    listeners.length = 0;
-  })
-  .catch(() => {
-    cachedGid = null;
-    fetched = true;
-    listeners.forEach(cb => cb(null));
-    listeners.length = 0;
-  });
+  .then(d => resolve(d.clientId))
+  .catch(() => resolve(null));
