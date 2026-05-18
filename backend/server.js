@@ -23,8 +23,6 @@ console.log(`VITE_GOOGLE_CLIENT : ${process.env.VITE_GOOGLE_CLIENT_ID ? process.
 console.log(`APP_URL            : ${process.env.APP_URL || "❌ NOT SET"}`);
 console.log("═══════════════════════════════════════");
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 // ── Set DATA_ROOT before DB module initializes ────────────────────────────────
 // CRITICAL: database.js reads DATA_ROOT at module evaluation time.
 // We must set it here before the static imports below execute their top-level code.
