@@ -4,6 +4,39 @@ import { Bot, Mail, Lock, Eye, EyeOff, ArrowLeft, Send, RefreshCw, AlertCircle }
 import { api } from "../lib/api.js";
 import { getGoogleClientId, onGoogleReady } from "../lib/googleAuth.js";
 
+// ── Popup fallback for incognito ──────────────────────────────────────────────
+function openGooglePopup(gid, onSuccess, setLoading) {
+  const w = 500, h = 600;
+  const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
+  const top  = Math.round(window.screenY + (window.outerHeight - h) / 2);
+  const cbUrl = window.location.origin + "/api/auth/google/callback";
+  const params = new URLSearchParams({
+    client_id: gid,
+    redirect_uri: cbUrl,
+    response_type: "code",
+    scope: "openid email profile",
+    prompt: "select_account",
+    access_type: "online",
+  });
+  const popup = window.open(
+    "https://accounts.google.com/o/oauth2/v2/auth?" + params,
+    "google-oauth", `width=${w},height=${h},left=${left},top=${top},resizable=yes`
+  );
+  const handler = async (e) => {
+    if (e.origin !== window.location.origin || e.data?.type !== "google-auth") return;
+    window.removeEventListener("message", handler);
+    popup?.close();
+    if (e.data.error) { alert(e.data.error); return; }
+    setLoading(true);
+    try { onSuccess(await api("POST", "/auth/google", { credential: e.data.credential })); }
+    catch(err) { alert(err.message); }
+    finally { setLoading(false); }
+  };
+  window.addEventListener("message", handler);
+  // Cleanup if popup closed without auth
+  const timer = setInterval(() => { if (popup?.closed) { clearInterval(timer); window.removeEventListener("message", handler); } }, 500);
+}
+
 // ── Google Button ─────────────────────────────────────────────────────────────
 function GoogleBtn({ onSuccess }) {
   const [gid, setGid] = useState(() => getGoogleClientId());
@@ -46,20 +79,10 @@ function GoogleBtn({ onSuccess }) {
     if (!gid) return;
     // Force account selection every time — user can pick different account
     window.google?.accounts.id.revoke("", () => {});
-    // Try popup first; fallback to OAuth redirect for incognito/blocked cookies
     if (window.google?.accounts) {
       window.google.accounts.id.prompt((notification) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          // Popup blocked (incognito, strict cookie settings) — use redirect
-          const params = new URLSearchParams({
-            client_id: gid,
-            redirect_uri: window.location.origin + "/auth/google/callback",
-            response_type: "token id_token",
-            scope: "openid email profile",
-            prompt: "select_account",
-            nonce: Math.random().toString(36).slice(2),
-          });
-          window.location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + params;
+          openGooglePopup(gid, onSuccess, setLoading);
         }
       });
     }
