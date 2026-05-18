@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bot, Mail, Lock, Eye, EyeOff, User as UserIcon, AlertCircle } from "lucide-react";
 import { api } from "../lib/api.js";
-import { getGoogleClientId, onGoogleReady } from "../lib/googleAuth.js";
+const GID = window.__ENV__?.GOOGLE_CLIENT_ID || "";
 
 function openGooglePopup(gid, onSuccess, setLoading) {
   const w = 500, h = 600;
@@ -26,19 +26,17 @@ function openGooglePopup(gid, onSuccess, setLoading) {
 }
 
 function GoogleBtn({ onSuccess }) {
-  const [gid, setGid] = useState(() => getGoogleClientId());
-  const [ready, setReady] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (gid) { loadGoogle(gid); }
-    else { onGoogleReady(id => { if (id) { setGid(id); loadGoogle(id); } }); }
+    if (GID) loadGoogle(GID);
   }, []);
 
   function loadGoogle(clientId) {
     const load = () => {
       window.google.accounts.id.initialize({
-        client_id: clientId,
+        client_id: GID,
         callback: async ({ credential }) => {
           setLoading(true);
           try { const d = await api("POST", "/auth/google", { credential }); onSuccess(d); }
@@ -48,7 +46,7 @@ function GoogleBtn({ onSuccess }) {
         auto_select: false,
         ux_mode: "popup",
       });
-      setReady(true);
+      setInitialized(true);
     };
     if (window.google?.accounts) { load(); return; }
     const s = document.createElement("script");
@@ -58,13 +56,14 @@ function GoogleBtn({ onSuccess }) {
     document.head.appendChild(s);
   }
 
-  if (!gid) return null;
+  if (!GID) return null;
 
   function handleClick() {
-    window.google?.accounts.id.revoke("", () => {});
-    window.google?.accounts.id.prompt((n) => {
+    if (!initialized || !window.google) { openGooglePopup(GID, onSuccess, setLoading); return; }
+    window.google.accounts.id.revoke("", () => {});
+    window.google.accounts.id.prompt((n) => {
       if (n.isNotDisplayed() || n.isSkippedMoment()) {
-        openGooglePopup(gid, onSuccess, setLoading);
+        openGooglePopup(GID, onSuccess, setLoading);
       }
     });
   }

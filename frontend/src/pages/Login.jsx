@@ -2,26 +2,16 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bot, Mail, Lock, Eye, EyeOff, ArrowLeft, Send, RefreshCw, AlertCircle } from "lucide-react";
 import { api } from "../lib/api.js";
-import { getGoogleClientId, onGoogleReady } from "../lib/googleAuth.js";
 
-// ── Popup fallback for incognito ──────────────────────────────────────────────
+const GID = window.__ENV__?.GOOGLE_CLIENT_ID || "";
+
 function openGooglePopup(gid, onSuccess, setLoading) {
   const w = 500, h = 600;
   const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
   const top  = Math.round(window.screenY + (window.outerHeight - h) / 2);
   const cbUrl = window.location.origin + "/api/auth/google/callback";
-  const params = new URLSearchParams({
-    client_id: gid,
-    redirect_uri: cbUrl,
-    response_type: "code",
-    scope: "openid email profile",
-    prompt: "select_account",
-    access_type: "online",
-  });
-  const popup = window.open(
-    "https://accounts.google.com/o/oauth2/v2/auth?" + params,
-    "google-oauth", `width=${w},height=${h},left=${left},top=${top},resizable=yes`
-  );
+  const params = new URLSearchParams({ client_id: gid, redirect_uri: cbUrl, response_type: "code", scope: "openid email profile", prompt: "select_account", access_type: "online" });
+  const popup = window.open("https://accounts.google.com/o/oauth2/v2/auth?" + params, "google-oauth", `width=${w},height=${h},left=${left},top=${top}`);
   const handler = async (e) => {
     if (e.origin !== window.location.origin || e.data?.type !== "google-auth") return;
     window.removeEventListener("message", handler);
@@ -33,66 +23,52 @@ function openGooglePopup(gid, onSuccess, setLoading) {
     finally { setLoading(false); }
   };
   window.addEventListener("message", handler);
-  // Cleanup if popup closed without auth
-  const timer = setInterval(() => { if (popup?.closed) { clearInterval(timer); window.removeEventListener("message", handler); } }, 500);
+  const t = setInterval(() => { if (popup?.closed) { clearInterval(t); window.removeEventListener("message", handler); } }, 500);
 }
 
-// ── Google Button ─────────────────────────────────────────────────────────────
 function GoogleBtn({ onSuccess }) {
-  const [gid, setGid] = useState(() => getGoogleClientId());
-  const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
-  const divRef = useState(null);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    // Wait for client ID
-    if (gid) { loadGoogle(gid); }
-    else { onGoogleReady(id => { if (id) { setGid(id); loadGoogle(id); } }); }
-  }, []);
-
-  function loadGoogle(clientId) {
-    const load = () => {
+    if (!GID) return;
+    function init() {
       window.google.accounts.id.initialize({
-        client_id: clientId,
+        client_id: GID,
         callback: async ({ credential }) => {
           setLoading(true);
-          try { const d = await api("POST", "/auth/google", { credential }); onSuccess(d); }
+          try { onSuccess(await api("POST", "/auth/google", { credential })); }
           catch(e) { alert(e.message); }
           finally { setLoading(false); }
         },
         auto_select: false,
-        cancel_on_tap_outside: true,
         ux_mode: "popup",
       });
-      setReady(true);
-    };
-
-    if (window.google?.accounts) { load(); return; }
+      setInitialized(true);
+    }
+    if (window.google?.accounts) { init(); return; }
     const s = document.createElement("script");
     s.src = "https://accounts.google.com/gsi/client";
-    s.async = true; s.defer = true;
-    s.onload = load;
+    s.async = true;
+    s.onload = init;
     document.head.appendChild(s);
-  }
+  }, []);
+
+  if (!GID) return null;
 
   function handleClick() {
-    if (!gid) return;
-    // Force account selection every time — user can pick different account
-    window.google?.accounts.id.revoke("", () => {});
-    if (window.google?.accounts) {
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          openGooglePopup(gid, onSuccess, setLoading);
-        }
-      });
-    }
+    if (!initialized || !window.google) { openGooglePopup(GID, onSuccess, setLoading); return; }
+    window.google.accounts.id.revoke("", () => {});
+    window.google.accounts.id.prompt((n) => {
+      if (n.isNotDisplayed() || n.isSkippedMoment()) {
+        openGooglePopup(GID, onSuccess, setLoading);
+      }
+    });
   }
-
-  if (!gid) return null;
 
   return (
     <>
-      <button type="button" onClick={handleClick} disabled={loading || !ready}
+      <button type="button" onClick={handleClick} disabled={loading}
         style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"11px 16px",borderRadius:10,border:"1.5px solid #e4e4e7",background:"#fff",cursor:"pointer",fontSize:14,fontWeight:600,color:"#374151",transition:"box-shadow .15s",boxShadow:"0 1px 3px rgba(0,0,0,.06)" }}
         onMouseEnter={e=>e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,.12)"}
         onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,.06)"}>
@@ -111,7 +87,6 @@ function GoogleBtn({ onSuccess }) {
   );
 }
 
-// ── Auth Card ─────────────────────────────────────────────────────────────────
 function AuthCard({ children }) {
   return (
     <div style={{ minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,background:"#f4f4f5" }}>
@@ -131,7 +106,6 @@ function AuthCard({ children }) {
   );
 }
 
-// ── Main Login ────────────────────────────────────────────────────────────────
 export default function Login() {
   const [form, setForm]     = useState({ email:"", password:"" });
   const [showPw, setShowPw] = useState(false);
@@ -246,7 +220,7 @@ export default function Login() {
           </div>
           <h2 style={{ fontWeight:700,fontSize:18,marginBottom:8 }}>Email Dihantar!</h2>
           <p style={{ fontSize:13.5,color:"#71717a",lineHeight:1.6,marginBottom:22 }}>
-            Link reset dihantar ke <strong style={{ color:"#0f172a" }}>{forgotEmail}</strong>.<br/>Sah 1 jam. Semak folder spam.
+            Link reset dihantar ke <strong style={{ color:"#0f172a" }}>{forgotEmail}</strong>.<br/>Sah 1 jam.
           </p>
           <button onClick={()=>{ setView("login"); setError(""); }} className="btn btn-secondary" style={{ width:"100%" }}>
             <ArrowLeft size={14}/> Kembali ke Login
