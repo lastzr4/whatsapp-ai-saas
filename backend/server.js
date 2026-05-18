@@ -10,6 +10,21 @@ dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// ── Print critical env vars (masked) ─────────────────────────────────────────
+function maskVal(v) { return v ? v.slice(0,6)+"..." : "❌ NOT SET"; }
+console.log("══════════════ ENV CHECK ══════════════");
+console.log(`NODE_ENV           : ${process.env.NODE_ENV || "development"}`);
+console.log(`DATA_PATH          : ${process.env.DATA_PATH || "❌ NOT SET"}`);
+console.log(`JWT_SECRET         : ${maskVal(process.env.JWT_SECRET)}`);
+console.log(`ANTHROPIC_API_KEY  : ${maskVal(process.env.ANTHROPIC_API_KEY)}`);
+console.log(`RESEND_API_KEY     : ${maskVal(process.env.RESEND_API_KEY)}`);
+console.log(`GOOGLE_CLIENT_ID   : ${process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.slice(0,20)+"..." : "❌ NOT SET"}`);
+console.log(`VITE_GOOGLE_CLIENT : ${process.env.VITE_GOOGLE_CLIENT_ID ? process.env.VITE_GOOGLE_CLIENT_ID.slice(0,20)+"..." : "❌ NOT SET"}`);
+console.log(`APP_URL            : ${process.env.APP_URL || "❌ NOT SET"}`);
+console.log("═══════════════════════════════════════");
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 // ── Set DATA_ROOT before DB module initializes ────────────────────────────────
 // CRITICAL: database.js reads DATA_ROOT at module evaluation time.
 // We must set it here before the static imports below execute their top-level code.
