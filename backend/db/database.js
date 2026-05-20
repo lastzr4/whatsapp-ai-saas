@@ -158,6 +158,25 @@ export function initDb() {
       WHERE is_admin = 0
         AND EXISTS (SELECT 1 FROM plan_limits WHERE plan = users.plan)
     ` },
+    { name: "global_knowledge_table", sql: `CREATE TABLE IF NOT EXISTS global_knowledge (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      content TEXT NOT NULL,
+      file_name TEXT DEFAULT '',
+      created_by INTEGER,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    )` },
+    { name: "tenant_knowledge_assignments_table", sql: `CREATE TABLE IF NOT EXISTS tenant_knowledge_assignments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      knowledge_id INTEGER NOT NULL,
+      assigned_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(user_id, knowledge_id),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (knowledge_id) REFERENCES global_knowledge(id)
+    )` },
   ];
 
   for (const m of migrations) {

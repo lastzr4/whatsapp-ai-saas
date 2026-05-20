@@ -82,12 +82,34 @@ PERATURAN:
   return base;
 }
 
+function getGlobalKnowledge(userId) {
+  try {
+    const rows = db.prepare(`
+      SELECT gk.name, gk.content
+      FROM global_knowledge gk
+      JOIN tenant_knowledge_assignments tka ON gk.id = tka.knowledge_id
+      WHERE tka.user_id = ?
+      ORDER BY gk.created_at ASC
+    `).all(userId);
+    if (!rows.length) return "";
+    return rows.map(r => `--- ${r.name} ---\n${r.content}`).join("\n\n");
+  } catch { return ""; }
+}
+
 async function askClaude(userId, contactId, userMessage, config) {
   addToHistory(userId, contactId, "user", userMessage);
+
+  // Build combined knowledge: tenant knowledge + assigned global knowledge
+  const globalKnowledge = getGlobalKnowledge(userId);
+  const combinedConfig = {
+    ...config,
+    knowledge: [config.knowledge, globalKnowledge].filter(Boolean).join("\n\n==================\n"),
+  };
+
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
-    system: buildSystemPrompt(config),
+    system: buildSystemPrompt(combinedConfig),
     messages: getHistory(userId, contactId),
   });
   const reply = response.content[0].text;

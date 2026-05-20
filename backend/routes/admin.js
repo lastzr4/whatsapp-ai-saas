@@ -289,4 +289,120 @@ router.post("/db/add-user", async (req, res) => {
   }
 });
 
+// ── Global Knowledge Base ─────────────────────────────────────────────────────
+
+// List all global knowledge
+router.get("/global-knowledge", (req, res) => {
+  const list = db.prepare(`
+    SELECT gk.*, u.name as created_by_name,
+      (SELECT COUNT(*) FROM tenant_knowledge_assignments WHERE knowledge_id = gk.id) as assigned_count
+    FROM global_knowledge gk
+    LEFT JOIN users u ON gk.created_by = u.id
+    ORDER BY gk.created_at DESC
+  `).all();
+  res.json(list);
+});
+
+// Upload/create global knowledge
+router.post("/global-knowledge", async (req, res) => {
+  const { name, description, content, file_name } = req.body;
+  if (!name || !content) return res.status(400).json({ error: "Nama dan kandungan diperlukan" });
+  const result = db.prepare(
+    "INSERT INTO global_knowledge (name, description, content, file_name, created_by) VALUES (?, ?, ?, ?, ?)"
+  ).run(name, description || "", content, file_name || "", req.adminId || 1);
+  res.json({ success: true, id: result.lastInsertRowid });
+});
+
+// Upload file and extract text for global knowledge
+router.post("/global-knowledge/upload", async (req, res) => {
+  const multer = (await import("multer")).default;
+  const path = (await import("path")).default;
+  const fs = (await import("fs")).default;
+
+  const upload = multer({
+    storage: multer.diskStorage({
+      destination: (r, f, cb) => {
+        const tmp = `/tmp/gk-${Date.now()}`;
+        fs.mkdirSync(tmp, { recursive: true });
+        cb(null, tmp);
+      },
+      filename: (r, f, cb) => cb(null, f.originalname),
+    }),
+    limits: { fileSize: 20 * 1024 * 1024 },
+  });
+
+  upload.single("file")(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: "Tiada fail" });
+
+    try {
+      const { extractTextFromFile } = await import("../services/knowledgeExtractor.js");
+      const text = await extractTextFromFile(req.file.path, req.file.mimetype, req.file.originalname);
+      try { fs.unlinkSync(req.file.path); fs.rmdirSync(path.dirname(req.file.path)); } catch {}
+
+      if (!text || text.trim().length < 10)
+        return res.status(400).json({ error: "Fail kosong atau tidak dapat dibaca" });
+
+      res.json({ success: true, content: text, file_name: req.file.originalname, characters: text.length });
+    } catch (e) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+      res.status(500).json({ error: e.message });
+    }
+  });
+});
+
+// Update global knowledge
+router.put("/global-knowledge/:id", (req, res) => {
+  const { name, description, content } = req.body;
+  db.prepare("UPDATE global_knowledge SET name=?, description=?, content=?, updated_at=datetime('now') WHERE id=?")
+    .run(name, description || "", content, req.params.id);
+  res.json({ success: true });
+});
+
+// Delete global knowledge
+router.delete("/global-knowledge/:id", (req, res) => {
+  db.prepare("DELETE FROM tenant_knowledge_assignments WHERE knowledge_id = ?").run(req.params.id);
+  db.prepare("DELETE FROM global_knowledge WHERE id = ?").run(req.params.id);
+  res.json({ success: true });
+});
+
+// Get assignments for a knowledge
+router.get("/global-knowledge/:id/assignments", (req, res) => {
+  const assigned = db.prepare(`
+    SELECT u.id, u.name, u.email, u.plan
+    FROM tenant_knowledge_assignments tka
+    JOIN users u ON tka.user_id = u.id
+    WHERE tka.knowledge_id = ?
+  `).all(req.params.id);
+  const all = db.prepare("SELECT id, name, email, plan FROM users WHERE is_admin = 0 AND is_active = 1 ORDER BY name").all();
+  res.json({ assigned, all });
+});
+
+// Assign knowledge to tenant
+router.post("/global-knowledge/:id/assign", (req, res) => {
+  const { user_id } = req.body;
+  try {
+    db.prepare("INSERT OR IGNORE INTO tenant_knowledge_assignments (user_id, knowledge_id) VALUES (?, ?)").run(user_id, req.params.id);
+    res.json({ success: true });
+  } catch(e) { res.status(400).json({ error: e.message }); }
+});
+
+// Unassign knowledge from tenant
+router.delete("/global-knowledge/:id/assign/:userId", (req, res) => {
+  db.prepare("DELETE FROM tenant_knowledge_assignments WHERE knowledge_id = ? AND user_id = ?").run(req.params.id, req.params.userId);
+  res.json({ success: true });
+});
+
+// Bulk assign/unassign
+router.post("/global-knowledge/:id/bulk-assign", (req, res) => {
+  const { user_ids } = req.body; // array of user_ids to assign
+  const kid = req.params.id;
+  // Remove all existing
+  db.prepare("DELETE FROM tenant_knowledge_assignments WHERE knowledge_id = ?").run(kid);
+  // Add selected
+  const insert = db.prepare("INSERT OR IGNORE INTO tenant_knowledge_assignments (user_id, knowledge_id) VALUES (?, ?)");
+  user_ids.forEach(uid => insert.run(uid, kid));
+  res.json({ success: true, assigned: user_ids.length });
+});
+
 export default router;

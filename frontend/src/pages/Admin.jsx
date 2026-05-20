@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, ScrollText, Database, ShieldCheck,
   LogOut, BarChart3, Bot, Wifi, WifiOff, RefreshCw, Trash2,
   PlusCircle, Eye, EyeOff, UserCheck, UserX, Square, ChevronRight,
-  Mail, User as UserIcon, AlertCircle, Search, Filter,
+  Mail, User as UserIcon, AlertCircle, Search, Filter, BookOpen, Upload,
 } from "lucide-react";
 import { api } from "../lib/api.js";
 
@@ -531,6 +531,221 @@ function PlanConfig({ showToast }) {
   );
 }
 
+// ── Global Knowledge Base Component ──────────────────────────────────────────
+function GlobalKnowledge({ showToast }) {
+  const [list, setList]         = useState([]);
+  const [selected, setSelected] = useState(null); // knowledge item being managed
+  const [view, setView]         = useState("list"); // list | create | assign
+  const [form, setForm]         = useState({ name:"", description:"", content:"", file_name:"" });
+  const [assignments, setAssignments] = useState({ assigned:[], all:[] });
+  const [saving, setSaving]     = useState(false);
+  const [extracting, setExtracting] = useState(false);
+
+  async function load() {
+    try { setList(await api("GET","/admin/global-knowledge")); } catch(e) { showToast(e.message,"error"); }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function handleUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = "";
+    setExtracting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch("/api/admin/global-knowledge/upload", { method:"POST", headers:{ Authorization:`Bearer ${token}` }, body:fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setForm(f=>({ ...f, content:data.content, file_name:data.file_name, name:f.name||file.name.replace(/\.[^.]+$/,"") }));
+      showToast(`✅ ${data.characters.toLocaleString()} aksara diekstrak`);
+    } catch(e) { showToast(e.message,"error"); }
+    setExtracting(false);
+  }
+
+  async function handleSave() {
+    if (!form.name || !form.content) return showToast("Nama dan kandungan diperlukan","error");
+    setSaving(true);
+    try {
+      if (selected?.id) {
+        await api("PUT",`/admin/global-knowledge/${selected.id}`, form);
+        showToast("✅ Knowledge dikemaskini");
+      } else {
+        await api("POST","/admin/global-knowledge", form);
+        showToast("✅ Knowledge dicipta");
+      }
+      setView("list"); setForm({ name:"",description:"",content:"",file_name:"" }); setSelected(null);
+      load();
+    } catch(e) { showToast(e.message,"error"); }
+    setSaving(false);
+  }
+
+  async function handleDelete(id) {
+    if (!confirm("Padam knowledge ini? Semua assignment akan dibuang.")) return;
+    try { await api("DELETE",`/admin/global-knowledge/${id}`); showToast("Dipadam"); load(); }
+    catch(e) { showToast(e.message,"error"); }
+  }
+
+  async function openAssign(item) {
+    setSelected(item);
+    const data = await api("GET",`/admin/global-knowledge/${item.id}/assignments`);
+    setAssignments(data);
+    setView("assign");
+  }
+
+  async function bulkSave(userIds) {
+    try {
+      await api("POST",`/admin/global-knowledge/${selected.id}/bulk-assign`, { user_ids: userIds });
+      showToast("✅ Assignment disimpan");
+      openAssign(selected);
+      load();
+    } catch(e) { showToast(e.message,"error"); }
+  }
+
+  // ── List View ──────────────────────────────────────────────────────────────
+  if (view === "list") return (
+    <div style={{ maxWidth:900,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
+      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+        <div>
+          <div style={{ fontWeight:700,fontSize:16 }}>📚 Global Knowledge Base</div>
+          <div style={{ fontSize:13,color:"var(--muted)" }}>Upload knowledge untuk dikongsi dengan tenant terpilih</div>
+        </div>
+        <button className="btn btn-default" onClick={()=>{ setForm({ name:"",description:"",content:"",file_name:"" }); setSelected(null); setView("create"); }}>
+          + Tambah Knowledge
+        </button>
+      </div>
+      {list.length === 0 && (
+        <div className="card" style={{ padding:48,textAlign:"center" }}>
+          <BookOpen size={48} style={{ margin:"0 auto 12px",color:"#d4d4d8" }}/>
+          <div style={{ fontWeight:600,marginBottom:8 }}>Belum ada Global Knowledge</div>
+          <p style={{ fontSize:13,color:"var(--muted)",marginBottom:20 }}>Upload price table, FAQ, atau katalog untuk dikongsi dengan tenant</p>
+          <button className="btn btn-default" onClick={()=>{ setForm({ name:"",description:"",content:"",file_name:"" }); setView("create"); }}>
+            + Upload Pertama
+          </button>
+        </div>
+      )}
+      {list.map(item => (
+        <div key={item.id} className="card" style={{ padding:"16px 20px" }}>
+          <div style={{ display:"flex",alignItems:"flex-start",gap:14 }}>
+            <div style={{ width:42,height:42,borderRadius:10,background:"var(--green-bg)",border:"1px solid var(--green-border)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:20 }}>📄</div>
+            <div style={{ flex:1,minWidth:0 }}>
+              <div style={{ fontWeight:700,fontSize:14,marginBottom:3 }}>{item.name}</div>
+              {item.description && <div style={{ fontSize:12,color:"var(--muted)",marginBottom:4 }}>{item.description}</div>}
+              <div style={{ display:"flex",gap:12,fontSize:12,color:"var(--muted)",flexWrap:"wrap" }}>
+                <span>📝 {item.content.length.toLocaleString()} aksara</span>
+                {item.file_name && <span>📎 {item.file_name}</span>}
+                <span>👥 {item.assigned_count} tenant</span>
+                <span>🕐 {new Date(item.created_at).toLocaleDateString("ms-MY")}</span>
+              </div>
+            </div>
+            <div style={{ display:"flex",gap:8,flexShrink:0 }}>
+              <button className="btn btn-secondary btn-sm" onClick={()=>openAssign(item)}>
+                👥 Assign ({item.assigned_count})
+              </button>
+              <button className="btn btn-outline btn-sm" onClick={()=>{ setSelected(item); setForm({ name:item.name,description:item.description,content:item.content,file_name:item.file_name }); setView("create"); }}>
+                Edit
+              </button>
+              <button className="btn btn-destructive btn-sm" onClick={()=>handleDelete(item.id)}>
+                <Trash2 size={13}/>
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  // ── Create/Edit View ───────────────────────────────────────────────────────
+  if (view === "create") return (
+    <div style={{ maxWidth:800,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
+      <div style={{ display:"flex",alignItems:"center",gap:12 }}>
+        <button className="btn btn-ghost btn-sm" onClick={()=>{ setView("list"); setSelected(null); }}>← Kembali</button>
+        <div style={{ fontWeight:700,fontSize:16 }}>{selected?.id ? "Edit Knowledge" : "Tambah Knowledge Baru"}</div>
+      </div>
+      <div className="card" style={{ padding:"20px 22px",display:"flex",flexDirection:"column",gap:14 }}>
+        <div>
+          <label className="form-label">Nama Knowledge *</label>
+          <input className="input" placeholder="cth: Harga Trade-In 2024" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
+        </div>
+        <div>
+          <label className="form-label">Keterangan (optional)</label>
+          <input className="input" placeholder="cth: Jadual anggaran harga trade-in kereta" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
+        </div>
+        <div>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6 }}>
+            <label className="form-label" style={{ margin:0 }}>Kandungan Knowledge *</label>
+            <label className="btn btn-outline btn-sm" style={{ cursor:extracting?"not-allowed":"pointer" }}>
+              {extracting ? <><span className="spinner" style={{ width:13,height:13 }}/> Mengekstrak...</> : <><Upload size={13}/> Upload Fail</>}
+              <input type="file" accept=".txt,.pdf,.xlsx,.xls,.docx,.jpg,.jpeg,.png,.csv" style={{ display:"none" }} disabled={extracting} onChange={handleUpload}/>
+            </label>
+          </div>
+          <textarea className="input" style={{ minHeight:300,fontFamily:"'Courier New',monospace",fontSize:12.5 }}
+            placeholder={"JADUAL HARGA TRADE-IN\n========================\n\nPROTON MYVI\n-----------\n2020 1.5 SE Auto: RM32,000 - RM35,000\n2019 1.5 SE Auto: RM28,000 - RM31,000\n2018 1.5 SE Auto: RM25,000 - RM28,000\n...\n\nNOTA: Harga tertakluk kepada pemeriksaan."}
+            value={form.content} onChange={e=>setForm({...form,content:e.target.value})}/>
+          <div style={{ fontSize:11.5,color:"var(--muted)",marginTop:4 }}>
+            {form.content.length.toLocaleString()} aksara · PDF, Excel, Word, JPG, TXT disokong
+          </div>
+        </div>
+        <div className="btn-row">
+          <button className="btn btn-default" onClick={handleSave} disabled={saving}>
+            {saving?<><span className="spinner spinner-white" style={{ width:14,height:14 }}/> Menyimpan...</>:"💾 Simpan Knowledge"}
+          </button>
+          <button className="btn btn-ghost" onClick={()=>{ setView("list"); setSelected(null); }}>Batal</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Assign View ────────────────────────────────────────────────────────────
+  if (view === "assign") {
+    const assignedIds = new Set(assignments.assigned.map(u=>u.id));
+    return (
+      <div style={{ maxWidth:700,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
+        <div style={{ display:"flex",alignItems:"center",gap:12 }}>
+          <button className="btn btn-ghost btn-sm" onClick={()=>setView("list")}>← Kembali</button>
+          <div>
+            <div style={{ fontWeight:700,fontSize:15 }}>Assign: {selected?.name}</div>
+            <div style={{ fontSize:12,color:"var(--muted)" }}>Pilih tenant yang boleh guna knowledge ini</div>
+          </div>
+        </div>
+        <div className="card" style={{ padding:"16px 20px" }}>
+          {assignments.all.length === 0 ? (
+            <div style={{ textAlign:"center",padding:24,color:"var(--muted)" }}>Tiada tenant aktif</div>
+          ) : (
+            <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+              {assignments.all.map(u => {
+                const isAssigned = assignedIds.has(u.id);
+                return (
+                  <div key={u.id} style={{ display:"flex",alignItems:"center",gap:12,padding:"10px 14px",borderRadius:10,border:`1.5px solid ${isAssigned?"var(--green)":"var(--border)"}`,background:isAssigned?"var(--green-bg)":"var(--surface)",transition:"all .15s" }}>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontWeight:600,fontSize:13 }}>{u.name}</div>
+                      <div style={{ fontSize:12,color:"var(--muted)" }}>{u.email} · <span className={`badge badge-${u.plan==="pro"?"green":u.plan==="starter"?"amber":"gray"}`}>{u.plan}</span></div>
+                    </div>
+                    <button
+                      className={isAssigned?"btn btn-destructive btn-sm":"btn btn-primary btn-sm"}
+                      onClick={async()=>{
+                        const newIds = isAssigned ? [...assignedIds].filter(id=>id!==u.id) : [...assignedIds,u.id];
+                        await bulkSave(newIds);
+                      }}>
+                      {isAssigned ? "Unassign" : "Assign"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="card" style={{ padding:"14px 18px",background:"var(--green-bg)",borderColor:"var(--green-border)" }}>
+          <div style={{ fontSize:13,color:"var(--green-dark)" }}>
+            ✅ <strong>{assignments.assigned.length}</strong> tenant di-assign · Knowledge ini akan disertakan dalam bot mereka secara automatik
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
 // ── Main Admin ────────────────────────────────────────────────────────────────
 const ADMIN_NAV = [
   { id:0, icon:LayoutDashboard, label:"Overview" },
@@ -538,6 +753,7 @@ const ADMIN_NAV = [
   { id:2, icon:ScrollText,      label:"Semua Log" },
   { id:3, icon:Database,        label:"Database" },
   { id:4, icon:ShieldCheck,     label:"Plan Config" },
+  { id:5, icon:BookOpen,        label:"Knowledge Base" },
 ];
 
 export default function Admin() {
@@ -799,6 +1015,9 @@ export default function Admin() {
 
           {/* ── Plan Config ── */}
           {tab===4 && <PlanConfig showToast={showToast} />}
+
+          {/* ── Knowledge Base ── */}
+          {tab===5 && <GlobalKnowledge showToast={showToast} />}
 
         </div>
       </main>
