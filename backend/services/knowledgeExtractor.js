@@ -28,7 +28,7 @@ export async function extractTextFromFile(filePath, mimeType, originalName) {
       console.log(`⚠️ pdf-parse failed: ${e.message}, trying Vision...`);
     }
 
-    // Method 2: Claude Vision (for scanned/image PDFs)
+    // Method 2: Claude Vision (for scanned/image PDFs).
     try {
       const imageData = fs.readFileSync(filePath).toString("base64");
       const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -110,3 +110,4 @@ export async function extractTextFromFile(filePath, mimeType, originalName) {
 
   throw new Error(`Format tidak disokong: ${ext}`);
 }
+ 
