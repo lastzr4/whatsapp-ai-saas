@@ -34,7 +34,7 @@ export async function extractTextFromFile(filePath, mimeType, originalName) {
       const { default: Anthropic } = await import("@anthropic-ai/sdk");
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-opus-4-5",
         max_tokens: 3000,
         messages: [{
           role: "user",
