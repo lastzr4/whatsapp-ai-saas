@@ -199,13 +199,12 @@ router.post("/upload-knowledge", authMiddleware, (req, res) => {
     try {
       const { extractTextFromFile } = await import("../services/knowledgeExtractor.js");
       const extractedText = await extractTextFromFile(req.file.path, req.file.mimetype, req.file.originalname);
-      fs.unlinkSync(req.file.path); // cleanup tmp
+      fs.unlinkSync(req.file.path);
 
       if (!extractedText || extractedText.trim().length < 10) {
         return res.status(400).json({ error: "Fail kosong atau tidak dapat dibaca. Sila semak kandungan fail." });
       }
 
-      // Append to existing knowledge (don't overwrite)
       const existing = db.prepare("SELECT knowledge FROM bot_configs WHERE user_id = ?").get(req.userId);
       const newKnowledge = existing?.knowledge
         ? `${existing.knowledge}\n\n--- ${req.file.originalname} ---\n${extractedText}`
@@ -219,6 +218,7 @@ router.post("/upload-knowledge", authMiddleware, (req, res) => {
         total_characters: newKnowledge.length,
       });
     } catch (e) {
+      console.error(`❌ Knowledge extract error for user ${req.userId}:`, e.message);
       try { if (req.file?.path) fs.unlinkSync(req.file.path); } catch {}
       res.status(500).json({ error: e.message });
     }
