@@ -169,17 +169,57 @@ router.get("/payment-qr-image", authMiddleware, (req, res) => {
   }
 });
 
-// ── Upload knowledge .txt ─────────────────────────────────────────────────────
+// ── Upload knowledge (PDF, Excel, Word, Image, TXT) ──────────────────────────
 router.post("/upload-knowledge", authMiddleware, (req, res) => {
-  upload.single("knowledge")(req, res, (err) => {
+  const knowledgeUpload = multer({
+    storage: multer.diskStorage({
+      destination: (req2, file, cb) => {
+        const tmpDir = path.join(getDataRoot(), "uploads", "_tmp");
+        fs.mkdirSync(tmpDir, { recursive: true });
+        cb(null, tmpDir);
+      },
+      filename: (req2, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        cb(null, `knowledge-tmp-${Date.now()}${ext}`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    fileFilter: (req2, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const allowed = [".txt",".csv",".md",".pdf",".xlsx",".xls",".xlsm",".docx",".jpg",".jpeg",".png",".webp"];
+      if (!allowed.includes(ext)) return cb(new Error(`Format tidak disokong. Guna: PDF, Excel, Word, JPG, PNG, TXT`));
+      cb(null, true);
+    },
+  });
+
+  knowledgeUpload.single("knowledge")(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: "Tiada fail diupload" });
+
     try {
-      const content = fs.readFileSync(req.file.path, "utf-8");
-      db.prepare("UPDATE bot_configs SET knowledge = ? WHERE user_id = ?").run(content, req.userId);
-      fs.unlinkSync(req.file.path);
-      res.json({ success: true, characters: content.length });
-    } catch(e) {
+      const { extractTextFromFile } = await import("../services/knowledgeExtractor.js");
+      const extractedText = await extractTextFromFile(req.file.path, req.file.mimetype, req.file.originalname);
+      fs.unlinkSync(req.file.path); // cleanup tmp
+
+      if (!extractedText || extractedText.trim().length < 10) {
+        return res.status(400).json({ error: "Fail kosong atau tidak dapat dibaca. Sila semak kandungan fail." });
+      }
+
+      // Append to existing knowledge (don't overwrite)
+      const existing = db.prepare("SELECT knowledge FROM bot_configs WHERE user_id = ?").get(req.userId);
+      const newKnowledge = existing?.knowledge
+        ? `${existing.knowledge}\n\n--- ${req.file.originalname} ---\n${extractedText}`
+        : extractedText;
+
+      db.prepare("UPDATE bot_configs SET knowledge = ? WHERE user_id = ?").run(newKnowledge, req.userId);
+      res.json({
+        success: true,
+        filename: req.file.originalname,
+        characters: extractedText.length,
+        total_characters: newKnowledge.length,
+      });
+    } catch (e) {
+      try { if (req.file?.path) fs.unlinkSync(req.file.path); } catch {}
       res.status(500).json({ error: e.message });
     }
   });

@@ -682,16 +682,22 @@ export default function Dashboard() {
                     {saving?<><span className="spinner spinner-white" style={{ width:15,height:15 }}/> Menyimpan...</>:"💾 Simpan"}
                   </button>
                   <label className="btn btn-outline" style={{ cursor:"pointer" }}>
-                    <Upload size={15} /> Upload .txt
-                    <input type="file" accept=".txt" style={{ display:"none" }} onChange={async e=>{
-                      if(!e.target.files[0]) return;
+                    <Upload size={15} /> Upload Fail
+                    <input type="file" accept=".txt,.pdf,.xlsx,.xls,.docx,.jpg,.jpeg,.png,.csv" style={{ display:"none" }} onChange={async e=>{
+                      const file = e.target.files[0];
+                      if(!file) return;
+                      e.target.value = "";
+                      showToast("Sedang memproses fail...","info");
                       try {
-                        const r = await uploadFile("/config/upload-knowledge","knowledge",e.target.files[0]);
+                        const r = await uploadFile("/config/upload-knowledge","knowledge",file);
                         await fetchConfig();
-                        showToast(`✅ ${r.characters.toLocaleString()} aksara dimuat!`);
+                        showToast(`✅ ${file.name} — ${r.characters.toLocaleString()} aksara ditambah`);
                       } catch(err) { showToast(err.message,"error"); }
                     }} />
                   </label>
+                  <div style={{ width:"100%",fontSize:11.5,color:"var(--muted)",marginTop:4 }}>
+                    📎 Sokong: PDF, Excel (.xlsx), Word (.docx), Imej (JPG/PNG), CSV, TXT · Max 10MB
+                  </div>
                   {config.knowledge && (
                     <button className="btn btn-ghost" onClick={()=>setConfig({...config,knowledge:""})}>
                       <Trash2 size={15} /> Kosong
