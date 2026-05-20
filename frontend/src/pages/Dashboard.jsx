@@ -665,7 +665,27 @@ export default function Dashboard() {
               </div>
             ) : config && (
             <div style={{ maxWidth:760,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
-              <div className="card" style={{ padding:"20px 22px" }}>
+              <div className="card" style={{ padding:"20px 22px",position:"relative",overflow:"hidden" }}>
+                {/* Extracting overlay */}
+                {config._extracting && (
+                  <div style={{ position:"absolute",inset:0,background:"rgba(255,255,255,.92)",zIndex:10,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16,borderRadius:"inherit" }}>
+                    <div style={{ position:"relative",width:64,height:64 }}>
+                      <div style={{ position:"absolute",inset:0,borderRadius:"50%",border:"3px solid rgba(34,197,94,.2)",borderTopColor:"var(--green)",animation:"spin 1s linear infinite" }}/>
+                      <div style={{ position:"absolute",inset:8,borderRadius:"50%",border:"3px solid rgba(34,197,94,.1)",borderBottomColor:"var(--green)",animation:"spin 1.5s linear infinite reverse" }}/>
+                      <div style={{ position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22 }}>📄</div>
+                    </div>
+                    <div style={{ textAlign:"center" }}>
+                      <div style={{ fontWeight:700,fontSize:15,color:"var(--text)",marginBottom:6 }}>Sedang Mengekstrak...</div>
+                      <div style={{ fontSize:13,color:"var(--muted)" }}>AI sedang membaca fail anda</div>
+                      <div style={{ fontSize:12,color:"var(--muted)",marginTop:4 }}>PDF & imej mungkin mengambil masa 10-30 saat</div>
+                    </div>
+                    <div style={{ display:"flex",gap:6 }}>
+                      {[0,1,2,3,4].map(i=>(
+                        <div key={i} style={{ width:8,height:8,borderRadius:"50%",background:"var(--green)",opacity:.3,animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite` }}/>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,gap:10,flexWrap:"wrap" }}>
                   <div>
                     <div style={{ fontWeight:700,fontSize:15,marginBottom:3 }}>📚 Pangkalan Pengetahuan</div>
@@ -673,30 +693,37 @@ export default function Dashboard() {
                   </div>
                   <span className="badge badge-secondary">{(config.knowledge||"").length.toLocaleString()} aksara</span>
                 </div>
-                <textarea className="input" style={{ minHeight:320,fontFamily:"'Courier New',monospace",fontSize:13.5 }}
+                <textarea className="input" style={{ minHeight:320,fontFamily:"'Courier New',monospace",fontSize:13.5,opacity:config._extracting?.5:1,transition:"opacity .3s" }}
                   placeholder={"TENTANG PERNIAGAAN\n===================\nNama: Kedai Saya\n\nPRODUK\n=======\n1. Produk A — RM50\n\nFAQ\n====\nS: Cara beli?\nJ: Pergi ke website..."}
                   value={config.knowledge}
-                  onChange={e=>setConfig({...config,knowledge:e.target.value})} />
+                  onChange={e=>setConfig({...config,knowledge:e.target.value})}
+                  disabled={config._extracting} />
                 <div className="btn-row" style={{ marginTop:14 }}>
-                  <button className="btn btn-default" onClick={saveConfig} disabled={saving}>
+                  <button className="btn btn-default" onClick={saveConfig} disabled={saving||config._extracting}>
                     {saving?<><span className="spinner spinner-white" style={{ width:15,height:15 }}/> Menyimpan...</>:"💾 Simpan"}
                   </button>
-                  <label className="btn btn-outline" style={{ cursor:"pointer" }}>
-                    <Upload size={15} /> Upload Fail
-                    <input type="file" accept=".txt,.pdf,.xlsx,.xls,.docx,.jpg,.jpeg,.png,.csv" style={{ display:"none" }} onChange={async e=>{
-                      const file = e.target.files[0];
-                      if(!file) return;
-                      e.target.value = "";
-                      showToast("Sedang memproses fail... Sila tunggu ⏳","info");
-                      try {
-                        const r = await uploadFile("/config/upload-knowledge","knowledge",file);
-                        const fresh = await api("GET","/config");
-                        setConfig(fresh);
-                        showToast(`✅ ${file.name} — ${r.characters.toLocaleString()} aksara berjaya diekstrak`);
-                      } catch(err) { showToast(err.message,"error"); }
-                    }} />
+                  <label className="btn btn-outline" style={{ cursor:config._extracting?"not-allowed":"pointer",opacity:config._extracting?.5:1 }}>
+                    <Upload size={15} /> {config._extracting?"Memproses...":"Upload Fail"}
+                    <input type="file" accept=".txt,.pdf,.xlsx,.xls,.docx,.jpg,.jpeg,.png,.csv" style={{ display:"none" }}
+                      disabled={config._extracting}
+                      onChange={async e=>{
+                        const file = e.target.files[0];
+                        if(!file) return;
+                        e.target.value = "";
+                        // Show extracting overlay
+                        setConfig(c=>({...c,_extracting:true}));
+                        try {
+                          const r = await uploadFile("/config/upload-knowledge","knowledge",file);
+                          const fresh = await api("GET","/config");
+                          setConfig({...fresh,_extracting:false});
+                          showToast(`✅ ${file.name} — ${r.characters.toLocaleString()} aksara berjaya diekstrak`);
+                        } catch(err) {
+                          setConfig(c=>({...c,_extracting:false}));
+                          showToast(err.message,"error");
+                        }
+                      }} />
                   </label>
-                  {config.knowledge && (
+                  {config.knowledge && !config._extracting && (
                     <button className="btn btn-ghost" onClick={()=>setConfig({...config,knowledge:""})}>
                       <Trash2 size={15} /> Kosong
                     </button>
