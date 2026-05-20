@@ -687,22 +687,23 @@ export default function Dashboard() {
                       const file = e.target.files[0];
                       if(!file) return;
                       e.target.value = "";
-                      showToast("Sedang memproses fail...","info");
+                      showToast("Sedang memproses fail... Sila tunggu ⏳","info");
                       try {
                         const r = await uploadFile("/config/upload-knowledge","knowledge",file);
-                        await fetchConfig();
-                        showToast(`✅ ${file.name} — ${r.characters.toLocaleString()} aksara ditambah`);
+                        const fresh = await api("GET","/config");
+                        setConfig(fresh);
+                        showToast(`✅ ${file.name} — ${r.characters.toLocaleString()} aksara berjaya diekstrak`);
                       } catch(err) { showToast(err.message,"error"); }
                     }} />
                   </label>
-                  <div style={{ width:"100%",fontSize:11.5,color:"var(--muted)",marginTop:4 }}>
-                    📎 Sokong: PDF, Excel (.xlsx), Word (.docx), Imej (JPG/PNG), CSV, TXT · Max 10MB
-                  </div>
                   {config.knowledge && (
                     <button className="btn btn-ghost" onClick={()=>setConfig({...config,knowledge:""})}>
                       <Trash2 size={15} /> Kosong
                     </button>
                   )}
+                </div>
+                <div style={{ marginTop:8,fontSize:11.5,color:"var(--muted)" }}>
+                  📎 PDF · Excel · Word · JPG/PNG · CSV · TXT · Max 10MB
                 </div>
               </div>
               <div className="card" style={{ padding:"16px 20px",background:"var(--green-bg)",borderColor:"var(--green-border)" }}>
