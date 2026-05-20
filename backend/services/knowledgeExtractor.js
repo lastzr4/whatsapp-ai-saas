@@ -14,7 +14,7 @@ export async function extractTextFromFile(filePath, mimeType, originalName) {
 
   // ── PDF ─────────────────────────────────────────────────────────────────────
   if (ext === ".pdf") {
-    // Method 1: pdf-parse (works for text-based PDFs)
+    // Method 1: pdf-parse (works for text-based PDFs)/
     try {
       const pdfParse = (await import("pdf-parse")).default;
       const buffer = fs.readFileSync(filePath);
