@@ -4,7 +4,7 @@ import {
   Plug, Settings, BookOpen, CreditCard, ScrollText,
   Bot, LogOut, Play, RotateCw, Square, Upload, Trash2,
   RefreshCw, Smartphone, CheckCircle2, Camera, MessageSquare,
-  User as UserIcon, AlertCircle, Download,
+  User as UserIcon, AlertCircle, Download, ShieldCheck,
 } from "lucide-react";
 import { api, uploadFile } from "../lib/api.js";
 
@@ -338,6 +338,13 @@ export default function Dashboard() {
           <UserIcon size={15} />
           <span className="truncate" style={{ fontSize:13 }}>{user.name}</span>
         </div>
+        {user.is_admin && (
+          <button className="nav-item" onClick={()=>navigate("/admin")}
+            style={{ background:"rgba(139,92,246,.1)",color:"#7c3aed",borderRadius:8,margin:"2px 8px",fontWeight:600 }}>
+            <ShieldCheck size={15} style={{ color:"#7c3aed" }} />
+            Admin Panel
+          </button>
+        )}
         <button className="nav-item" onClick={async()=>{
           try { await api("POST","/bot/stop"); } catch {}
           try { await api("POST","/auth/logout"); } catch {}
