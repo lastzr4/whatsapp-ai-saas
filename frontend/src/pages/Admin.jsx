@@ -1270,16 +1270,16 @@ export default function Admin() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="bottom-nav">
+      <nav className="bottom-nav" style={{ gridTemplateColumns:`repeat(${ADMIN_NAV.length+1},1fr)`,overflowX:"auto" }}>
         {ADMIN_NAV.map(n=>(
-          <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
-            <n.icon />
-            {n.label}
+          <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)} style={{ minWidth:52 }}>
+            <n.icon size={18}/>
+            <span style={{ fontSize:9,whiteSpace:"nowrap" }}>{n.label}</span>
           </button>
         ))}
-        <button className="bottom-nav-item" onClick={()=>navigate("/dashboard")}>
-          <Bot />
-          User
+        <button className="bottom-nav-item" style={{ minWidth:52 }} onClick={()=>navigate("/dashboard")}>
+          <Bot size={18}/>
+          <span style={{ fontSize:9 }}>User</span>
         </button>
       </nav>
 
