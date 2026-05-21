@@ -38,16 +38,17 @@ export function getBotErrors(userId) {
   return botErrorLogs.get(userId) || [];
 }
 
-const PAYMENT_KEYWORDS = [
-  "qr", "qr code", "bayar", "bayaran", "pembayaran", "transfer",
-  "duitnow", "duit now", "maybank", "cimb", "rhb", "bank islam",
-  "tng", "touch n go", "touchngo", "ewallet", "e-wallet",
-  "nak beli", "nak bayar", "macam mana nak bayar", "cara bayar",
-  "payment", "pay", "how to pay", "checkout",
-];
-
 function isPaymentQuery(text) {
-  return PAYMENT_KEYWORDS.some((kw) => text.toLowerCase().includes(kw));
+  try {
+    const row = db.prepare("SELECT config_json FROM bot_guardrails WHERE key = 'payment_keywords' AND is_enabled = 1").get();
+    if (row) {
+      const keywords = JSON.parse(row.config_json).keywords || [];
+      return keywords.some(kw => text.toLowerCase().includes(kw.toLowerCase()));
+    }
+  } catch {}
+  // Fallback to hardcoded defaults
+  const defaults = ["qr","bayar","bayaran","duitnow","tng","ewallet","payment","pay"];
+  return defaults.some(kw => text.toLowerCase().includes(kw));
 }
 
 function getConvoKey(userId, contactId) { return `${userId}:${contactId}`; }

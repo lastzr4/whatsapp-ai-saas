@@ -757,6 +757,7 @@ const RULE_ICONS = {
   conversation_limit: "💬",
   repeat_detection:   "🔄",
   number_blacklist:   "🚷",
+  payment_keywords:   "💳",
 };
 
 function GuardrailsManager({ showToast }) {
@@ -820,6 +821,7 @@ function GuardrailsManager({ showToast }) {
                 {rule.key==="number_blacklist" && `${(rule.config.numbers||[]).length} nombor disekat`}
                 {rule.key==="profanity_filter" && `${(rule.config.words||[]).length} kata terlarang`}
                 {rule.key==="prompt_injection" && `${(rule.config.patterns||[]).length} pattern dikesan`}
+                {rule.key==="payment_keywords" && `${(rule.config.keywords||[]).length} kata kunci aktif`}
               </div>
             </div>
             <div style={{ display:"flex",gap:8,flexShrink:0 }}>
@@ -962,6 +964,18 @@ function ConfigEditor({ rule, onSave, onCancel, saving }) {
           <textarea className="input" rows={5}
             value={(cfg.patterns||[]).join("\n")}
             onChange={e=>updateCfg("patterns", e.target.value.split("\n").map(p=>p.trim()).filter(Boolean))}/>
+        </div>
+      )}
+
+      {/* Payment Keywords */}
+      {rule.key==="payment_keywords" && (
+        <div>
+          <label className="form-label">Kata kunci pencetus QR (satu per baris)</label>
+          <p style={{ fontSize:12,color:"var(--muted)",marginBottom:8 }}>Bot akan hantar QR pembayaran apabila mesej mengandungi mana-mana kata kunci ini</p>
+          <textarea className="input" rows={8} style={{ fontFamily:"monospace",fontSize:13 }}
+            value={(cfg.keywords||[]).join("\n")}
+            onChange={e=>updateCfg("keywords", e.target.value.split("\n").map(k=>k.trim()).filter(Boolean))}/>
+          <div style={{ fontSize:11.5,color:"var(--muted)",marginTop:4 }}>{(cfg.keywords||[]).length} kata kunci aktif</div>
         </div>
       )}
 

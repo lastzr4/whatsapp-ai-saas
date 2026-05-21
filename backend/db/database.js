@@ -194,7 +194,8 @@ export function initDb() {
       ('message_length',     'Had Panjang Mesej',       'Hadkan panjang mesej yang diterima', 1, '{"max_chars":1000,"action":"truncate"}'),
       ('conversation_limit', 'Had Perbualan Harian',    'Hadkan bilangan mesej per hari dari satu nombor', 0, '{"max_per_day":30,"reset_hour":0,"away_message":"Terima kasih kerana menghubungi kami! Had perbualan harian telah dicapai. Sila hubungi semula esok 😊"}'),
       ('repeat_detection',   'Kesan Mesej Berulang',    'Abaikan mesej yang sama dihantar berulang kali', 1, '{"max_repeat":3,"window_minutes":5}'),
-      ('number_blacklist',   'Senarai Hitam Nombor',    'Sekat nombor telefon tertentu dari menggunakan bot', 0, '{"numbers":[]}')
+      ('number_blacklist',   'Senarai Hitam Nombor',    'Sekat nombor telefon tertentu dari menggunakan bot', 0, '{"numbers":[]}'),
+      ('payment_keywords',   'Kata Kunci Pencetus QR',  'Kata kunci yang mencetuskan bot untuk hantar QR pembayaran', 1, '{"keywords":["qr","qr code","bayar","bayaran","pembayaran","transfer","duitnow","duit now","maybank","cimb","rhb","tng","touch n go","touchngo","ewallet","e-wallet","nak beli","nak bayar","cara bayar","payment","pay"]}')
     ` },
   ];
 
