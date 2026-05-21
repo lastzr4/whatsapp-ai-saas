@@ -815,15 +815,6 @@ export default function Dashboard() {
                   {saving?<><span className="spinner spinner-white" style={{ width:15,height:15 }}/> Menyimpan...</>:"💾 Simpan Kapsyen"}
                 </button>
               </div>
-
-              <div className="card" style={{ padding:"14px 18px",background:"var(--blue-bg)",borderColor:"var(--blue-border)" }}>
-                <div style={{ fontWeight:700,fontSize:12,color:"var(--blue-text)",marginBottom:8 }}>🔑 Kata kunci pencetus QR</div>
-                <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
-                  {["bayar","bayaran","qr","duitnow","tng","ewallet","maybank","cimb","transfer","payment","pay"].map(k=>(
-                    <span key={k} className="badge badge-blue" style={{ fontSize:11 }}>{k}</span>
-                  ))}
-                </div>
-              </div>
             </div>
           ))}
 
