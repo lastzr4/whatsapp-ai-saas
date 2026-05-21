@@ -5,6 +5,7 @@ import {
   LogOut, BarChart3, Bot, Wifi, WifiOff, RefreshCw, Trash2,
   PlusCircle, Eye, EyeOff, UserCheck, UserX, Square, ChevronRight,
   Mail, User as UserIcon, AlertCircle, Search, Filter, BookOpen, Upload,
+  Shield, ToggleLeft, ToggleRight, Settings2, Clock, Ban, Repeat, Zap,
 } from "lucide-react";
 import { api } from "../lib/api.js";
 
@@ -746,6 +747,234 @@ function GlobalKnowledge({ showToast }) {
   }
 }
 
+// ── Guardrails Component ──────────────────────────────────────────────────────
+const RULE_ICONS = {
+  rate_limit:         "⚡",
+  prompt_injection:   "🛡️",
+  profanity_filter:   "🚫",
+  business_hours:     "🕐",
+  message_length:     "📏",
+  conversation_limit: "💬",
+  repeat_detection:   "🔄",
+  number_blacklist:   "🚷",
+};
+
+function GuardrailsManager({ showToast }) {
+  const [rules, setRules]   = useState([]);
+  const [editing, setEditing] = useState(null); // rule being edited
+  const [saving, setSaving] = useState({});
+
+  async function load() {
+    try { setRules(await api("GET","/admin/guardrails")); }
+    catch(e) { showToast(e.message,"error"); }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function toggleRule(rule) {
+    setSaving(s=>({...s,[rule.key]:true}));
+    try {
+      await api("PUT",`/admin/guardrails/${rule.key}`, { is_enabled: !rule.is_enabled, config: rule.config });
+      showToast(`${!rule.is_enabled?"✅ Diaktifkan":"⏸️ Dinyahaktifkan"}: ${rule.name}`);
+      load();
+    } catch(e) { showToast(e.message,"error"); }
+    setSaving(s=>({...s,[rule.key]:false}));
+  }
+
+  async function saveConfig(rule, newConfig) {
+    setSaving(s=>({...s,[rule.key]:true}));
+    try {
+      await api("PUT",`/admin/guardrails/${rule.key}`, { is_enabled: rule.is_enabled, config: newConfig });
+      showToast(`✅ ${rule.name} dikemaskini`);
+      setEditing(null); load();
+    } catch(e) { showToast(e.message,"error"); }
+    setSaving(s=>({...s,[rule.key]:false}));
+  }
+
+  return (
+    <div style={{ maxWidth:800,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
+      <div className="card" style={{ padding:"14px 18px",background:"rgba(99,102,241,.04)",borderColor:"rgba(99,102,241,.2)" }}>
+        <div style={{ fontWeight:600,fontSize:13.5,color:"#4338ca" }}>
+          🛡️ Guardrails diaplikasi secara global kepada semua tenant. Admin sahaja boleh mengkonfigurasi.
+        </div>
+      </div>
+
+      {rules.map(rule => (
+        <div key={rule.key} className="card" style={{ padding:"18px 20px",border:`1.5px solid ${rule.is_enabled?"rgba(34,197,94,.3)":"var(--border)"}`,transition:"all .2s" }}>
+          <div style={{ display:"flex",alignItems:"center",gap:14 }}>
+            <div style={{ fontSize:28,flexShrink:0 }}>{RULE_ICONS[rule.key]||"🔧"}</div>
+            <div style={{ flex:1,minWidth:0 }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:3 }}>
+                <span style={{ fontWeight:700,fontSize:14 }}>{rule.name}</span>
+                <span className={`badge ${rule.is_enabled?"badge-green":"badge-gray"}`}>
+                  {rule.is_enabled?"Aktif":"Tidak Aktif"}
+                </span>
+              </div>
+              <div style={{ fontSize:12.5,color:"var(--muted)" }}>{rule.description}</div>
+              {/* Config summary */}
+              <div style={{ fontSize:11.5,color:"var(--muted)",marginTop:4 }}>
+                {rule.key==="rate_limit" && `Max ${rule.config.max_per_minute} mesej/minit`}
+                {rule.key==="message_length" && `Max ${rule.config.max_chars} aksara`}
+                {rule.key==="conversation_limit" && `Max ${rule.config.max_per_day} mesej/hari`}
+                {rule.key==="repeat_detection" && `Sekat selepas ${rule.config.max_repeat}x ulangan`}
+                {rule.key==="business_hours" && `${rule.config.start}–${rule.config.end}`}
+                {rule.key==="number_blacklist" && `${(rule.config.numbers||[]).length} nombor disekat`}
+                {rule.key==="profanity_filter" && `${(rule.config.words||[]).length} kata terlarang`}
+                {rule.key==="prompt_injection" && `${(rule.config.patterns||[]).length} pattern dikesan`}
+              </div>
+            </div>
+            <div style={{ display:"flex",gap:8,flexShrink:0 }}>
+              <button className="btn btn-outline btn-sm" onClick={()=>setEditing(editing?.key===rule.key?null:rule)}>
+                <Settings2 size={13}/> Config
+              </button>
+              <button
+                className={`btn btn-sm ${rule.is_enabled?"btn-destructive":"btn-primary"}`}
+                disabled={saving[rule.key]}
+                onClick={()=>toggleRule(rule)}>
+                {saving[rule.key]
+                  ? <span className="spinner spinner-white" style={{ width:13,height:13 }}/>
+                  : rule.is_enabled ? "Matikan" : "Aktifkan"
+                }
+              </button>
+            </div>
+          </div>
+
+          {/* Inline config editor */}
+          {editing?.key === rule.key && (
+            <ConfigEditor rule={rule} onSave={saveConfig} onCancel={()=>setEditing(null)} saving={saving[rule.key]}/>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ConfigEditor({ rule, onSave, onCancel, saving }) {
+  const [cfg, setCfg] = useState({ ...rule.config });
+
+  function updateCfg(key, val) { setCfg(c=>({...c,[key]:val})); }
+
+  return (
+    <div style={{ marginTop:16,paddingTop:16,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:12 }}>
+      {/* Rate Limit */}
+      {rule.key==="rate_limit" && <>
+        <div className="grid-2">
+          <div>
+            <label className="form-label">Max mesej per minit</label>
+            <input className="input" type="number" min="1" max="60" value={cfg.max_per_minute} onChange={e=>updateCfg("max_per_minute",+e.target.value)}/>
+          </div>
+          <div>
+            <label className="form-label">Cool-down (saat)</label>
+            <input className="input" type="number" min="0" value={cfg.cooldown_seconds} onChange={e=>updateCfg("cooldown_seconds",+e.target.value)}/>
+          </div>
+        </div>
+      </>}
+
+      {/* Business Hours */}
+      {rule.key==="business_hours" && <>
+        <div className="grid-2">
+          <div>
+            <label className="form-label">Masa Mula</label>
+            <input className="input" type="time" value={cfg.start} onChange={e=>updateCfg("start",e.target.value)}/>
+          </div>
+          <div>
+            <label className="form-label">Masa Tamat</label>
+            <input className="input" type="time" value={cfg.end} onChange={e=>updateCfg("end",e.target.value)}/>
+          </div>
+        </div>
+        <div>
+          <label className="form-label">Hari Operasi</label>
+          <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+            {["Ahd","Isn","Sel","Rab","Kha","Jum","Sab"].map((d,i)=>(
+              <button key={i} type="button"
+                className={`btn btn-sm ${(cfg.days||[]).includes(i)?"btn-default":"btn-ghost"}`}
+                onClick={()=>{
+                  const days = cfg.days||[];
+                  updateCfg("days", days.includes(i)?days.filter(x=>x!==i):[...days,i].sort());
+                }}>{d}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="form-label">Mesej Luar Waktu</label>
+          <textarea className="input" rows={2} value={cfg.away_message} onChange={e=>updateCfg("away_message",e.target.value)}/>
+        </div>
+      </>}
+
+      {/* Message Length */}
+      {rule.key==="message_length" && (
+        <div>
+          <label className="form-label">Max aksara</label>
+          <input className="input" type="number" min="50" max="5000" value={cfg.max_chars} onChange={e=>updateCfg("max_chars",+e.target.value)}/>
+        </div>
+      )}
+
+      {/* Conversation Limit */}
+      {rule.key==="conversation_limit" && <>
+        <div>
+          <label className="form-label">Max mesej per hari</label>
+          <input className="input" type="number" min="1" value={cfg.max_per_day} onChange={e=>updateCfg("max_per_day",+e.target.value)}/>
+        </div>
+        <div>
+          <label className="form-label">Mesej had dicapai</label>
+          <textarea className="input" rows={2} value={cfg.away_message} onChange={e=>updateCfg("away_message",e.target.value)}/>
+        </div>
+      </>}
+
+      {/* Repeat Detection */}
+      {rule.key==="repeat_detection" && (
+        <div className="grid-2">
+          <div>
+            <label className="form-label">Max ulangan</label>
+            <input className="input" type="number" min="1" value={cfg.max_repeat} onChange={e=>updateCfg("max_repeat",+e.target.value)}/>
+          </div>
+          <div>
+            <label className="form-label">Tetingkap masa (minit)</label>
+            <input className="input" type="number" min="1" value={cfg.window_minutes} onChange={e=>updateCfg("window_minutes",+e.target.value)}/>
+          </div>
+        </div>
+      )}
+
+      {/* Number Blacklist */}
+      {rule.key==="number_blacklist" && (
+        <div>
+          <label className="form-label">Nombor disekat (satu per baris, cth: 60123456789)</label>
+          <textarea className="input" rows={4}
+            value={(cfg.numbers||[]).join("\n")}
+            onChange={e=>updateCfg("numbers", e.target.value.split("\n").map(n=>n.trim()).filter(Boolean))}/>
+          <div style={{ fontSize:12,color:"var(--muted)",marginTop:4 }}>{(cfg.numbers||[]).length} nombor disekat</div>
+        </div>
+      )}
+
+      {/* Profanity Filter */}
+      {rule.key==="profanity_filter" && (
+        <div>
+          <label className="form-label">Kata terlarang (satu per baris)</label>
+          <textarea className="input" rows={4}
+            value={(cfg.words||[]).join("\n")}
+            onChange={e=>updateCfg("words", e.target.value.split("\n").map(w=>w.trim()).filter(Boolean))}/>
+        </div>
+      )}
+
+      {/* Prompt Injection */}
+      {rule.key==="prompt_injection" && (
+        <div>
+          <label className="form-label">Pattern berbahaya (satu per baris)</label>
+          <textarea className="input" rows={5}
+            value={(cfg.patterns||[]).join("\n")}
+            onChange={e=>updateCfg("patterns", e.target.value.split("\n").map(p=>p.trim()).filter(Boolean))}/>
+        </div>
+      )}
+
+      <div className="btn-row">
+        <button className="btn btn-default btn-sm" disabled={saving} onClick={()=>onSave(rule,cfg)}>
+          {saving?<><span className="spinner spinner-white" style={{ width:13,height:13 }}/> Menyimpan...</>:"💾 Simpan"}
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Batal</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Admin ────────────────────────────────────────────────────────────────
 const ADMIN_NAV = [
   { id:0, icon:LayoutDashboard, label:"Overview" },
@@ -754,6 +983,7 @@ const ADMIN_NAV = [
   { id:3, icon:Database,        label:"Database" },
   { id:4, icon:ShieldCheck,     label:"Plan Config" },
   { id:5, icon:BookOpen,        label:"Knowledge Base" },
+  { id:6, icon:ShieldCheck,     label:"Guardrails" },
 ];
 
 export default function Admin() {
@@ -1018,6 +1248,9 @@ export default function Admin() {
 
           {/* ── Knowledge Base ── */}
           {tab===5 && <GlobalKnowledge showToast={showToast} />}
+
+          {/* ── Guardrails ── */}
+          {tab===6 && <GuardrailsManager showToast={showToast} />}
 
         </div>
       </main>

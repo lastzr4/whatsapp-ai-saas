@@ -177,6 +177,25 @@ export function initDb() {
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (knowledge_id) REFERENCES global_knowledge(id)
     )` },
+    { name: "bot_guardrails_table", sql: `CREATE TABLE IF NOT EXISTS bot_guardrails (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      key TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      is_enabled INTEGER DEFAULT 0,
+      config_json TEXT DEFAULT '{}',
+      updated_at TEXT DEFAULT (datetime('now'))
+    )` },
+    { name: "bot_guardrails_seed", sql: `INSERT OR IGNORE INTO bot_guardrails (key, name, description, is_enabled, config_json) VALUES
+      ('rate_limit',         'Rate Limiting',           'Hadkan bilangan mesej per minit dari satu nombor', 1, '{"max_per_minute":5,"cooldown_seconds":30}'),
+      ('prompt_injection',   'Anti-Prompt Injection',   'Sekat cubaan manipulate bot dengan arahan berbahaya', 1, '{"patterns":["ignore previous","abaikan arahan","act as","kamu adalah","you are now","forget your","jangan ikut"]}'),
+      ('profanity_filter',   'Profanity Filter',        'Sekat mesej yang mengandungi kata kesat', 0, '{"words":[],"action":"ignore"}'),
+      ('business_hours',     'Waktu Operasi',           'Bot hanya aktif dalam waktu yang ditetapkan', 0, '{"start":"09:00","end":"18:00","days":[1,2,3,4,5],"timezone":"Asia/Kuala_Lumpur","away_message":"Terima kasih! Kami beroperasi 9am-6pm. Mesej anda akan kami balas semula dalam waktu operasi 😊"}'),
+      ('message_length',     'Had Panjang Mesej',       'Hadkan panjang mesej yang diterima', 1, '{"max_chars":1000,"action":"truncate"}'),
+      ('conversation_limit', 'Had Perbualan Harian',    'Hadkan bilangan mesej per hari dari satu nombor', 0, '{"max_per_day":30,"reset_hour":0,"away_message":"Terima kasih kerana menghubungi kami! Had perbualan harian telah dicapai. Sila hubungi semula esok 😊"}'),
+      ('repeat_detection',   'Kesan Mesej Berulang',    'Abaikan mesej yang sama dihantar berulang kali', 1, '{"max_repeat":3,"window_minutes":5}'),
+      ('number_blacklist',   'Senarai Hitam Nombor',    'Sekat nombor telefon tertentu dari menggunakan bot', 0, '{"numbers":[]}')
+    ` },
   ];
 
   for (const m of migrations) {

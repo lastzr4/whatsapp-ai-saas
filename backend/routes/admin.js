@@ -289,6 +289,19 @@ router.post("/db/add-user", async (req, res) => {
   }
 });
 
+// ── Guardrails ────────────────────────────────────────────────────────────────
+router.get("/guardrails", (req, res) => {
+  const rules = db.prepare("SELECT * FROM bot_guardrails ORDER BY id").all();
+  res.json(rules.map(r => ({ ...r, config: JSON.parse(r.config_json || "{}") })));
+});
+
+router.put("/guardrails/:key", (req, res) => {
+  const { is_enabled, config } = req.body;
+  db.prepare("UPDATE bot_guardrails SET is_enabled=?, config_json=?, updated_at=datetime('now') WHERE key=?")
+    .run(is_enabled ? 1 : 0, JSON.stringify(config || {}), req.params.key);
+  res.json({ success: true });
+});
+
 // ── Global Knowledge Base ─────────────────────────────────────────────────────
 
 // List all global knowledge

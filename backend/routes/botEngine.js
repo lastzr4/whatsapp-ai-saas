@@ -7,11 +7,15 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import db from "../db/database.js";
+import { checkGuardrails, initGuardrails } from "../services/guardrails.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// Init guardrails with DB reference
+initGuardrails(db);
 
 const botInstances        = new Map(); // userId -> client
 const conversationHistories = new Map();
@@ -342,6 +346,16 @@ export async function startBot(userId) {
       if (!userText) return;
       const logMessage = isVoiceNote ? `[🎙️ Voice] ${userText}` : userText;
       console.log(`📨 User ${userId} — [${senderNumber}]: ${logMessage}`);
+
+      // ── Guardrails check ────────────────────────────────────────────────────
+      const guardResult = checkGuardrails(userId, senderNumber, userText);
+      if (guardResult.blocked) {
+        console.log(`🚫 Guardrail [${guardResult.reason}] blocked msg from ${senderNumber}`);
+        if (guardResult.action === "reply" && guardResult.reply) {
+          await safeSend(() => message.reply(guardResult.reply));
+        }
+        return;
+      }
 
       if (userText.toLowerCase() === "!reset") {
         clearHistory(userId, contactId);
