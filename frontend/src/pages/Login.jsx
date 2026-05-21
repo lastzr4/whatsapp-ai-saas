@@ -62,7 +62,7 @@ function GoogleBtn({ onSuccess }) {
 
 function AuthCard({ children }) {
   return (
-    <div style={{ minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,background:"#f4f4f5" }}>
+    <div style={{ minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,background:"#080f0b" }}>
       <div style={{ width:"100%",maxWidth:400 }}>
         <div style={{ textAlign:"center",marginBottom:28 }}>
           <Link to="/" style={{ textDecoration:"none" }}>
@@ -73,7 +73,7 @@ function AuthCard({ children }) {
           </Link>
           <p style={{ fontSize:13,color:"#71717a" }}>Bot WhatsApp AI Platform</p>
         </div>
-        <div className="card" style={{ padding:28 }}>{children}</div>
+        <div className="card" style={{ padding:28, background:"rgba(13,21,16,0.95)", border:"1px solid rgba(16,185,129,0.12)" }}>{children}</div>
       </div>
     </div>
   );

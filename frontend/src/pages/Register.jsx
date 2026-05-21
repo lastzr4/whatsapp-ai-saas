@@ -85,14 +85,14 @@ export default function Register() {
   }
 
   if (done) return (
-    <div style={{ minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20,background:"#f4f4f5" }}>
+    <div style={{ minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20,background:"#080f0b" }}>
       <div style={{ width:"100%",maxWidth:400 }}>
         <div className="card" style={{ padding:32,textAlign:"center" }}>
           <div style={{ width:64,height:64,borderRadius:18,background:"#f0fdf4",border:"1px solid #bbf7d0",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:20 }}>
             <Mail size={30} style={{ color:"#16a34a" }}/>
           </div>
           <h2 style={{ fontWeight:800,fontSize:20,marginBottom:8 }}>Semak Email Anda! 📬</h2>
-          <div style={{ background:"#f4f4f5",borderRadius:8,padding:"10px 16px",marginBottom:16,fontWeight:700,fontSize:14 }}>{doneEmail}</div>
+          <div style={{ background:"#080f0b",borderRadius:8,padding:"10px 16px",marginBottom:16,fontWeight:700,fontSize:14 }}>{doneEmail}</div>
           <div style={{ background:"#f0fdf4",borderRadius:10,padding:"12px 16px",marginBottom:20,border:"1px solid #bbf7d0" }}>
             <p style={{ fontSize:13,color:"#15803d",margin:0,lineHeight:1.6 }}>
               ✅ Klik link dalam email untuk aktifkan akaun.<br/>
@@ -106,7 +106,7 @@ export default function Register() {
   );
 
   return (
-    <div style={{ minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20,background:"#f4f4f5" }}>
+    <div style={{ minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20,background:"#080f0b" }}>
       <div style={{ width:"100%",maxWidth:400 }}>
         <div style={{ textAlign:"center",marginBottom:28 }}>
           <Link to="/" style={{ textDecoration:"none" }}>
@@ -117,7 +117,7 @@ export default function Register() {
           </Link>
           <p style={{ fontSize:13,color:"#71717a" }}>Bot WhatsApp AI Platform</p>
         </div>
-        <div className="card" style={{ padding:28 }}>
+        <div className="card" style={{ padding:28, background:"rgba(13,21,16,0.95)", border:"1px solid rgba(16,185,129,0.12)" }}>
           <h2 style={{ fontWeight:700,fontSize:19,marginBottom:4 }}>Buat Akaun</h2>
           <p style={{ fontSize:13,color:"#71717a",marginBottom:20 }}>Mulakan bot WhatsApp AI anda hari ini</p>
           <GoogleBtn onSuccess={handleSuccess}/>
