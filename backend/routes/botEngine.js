@@ -275,7 +275,9 @@ export async function startBot(userId) {
   // ── Event: Incoming messages ────────────────────────────────────────────────
   client.on("message", async (message) => {
     try {
-      if (!message.body || message.type !== "chat") return;
+      // Accept text messages AND voice notes
+      const isVoice = message.type === "ptt" || message.type === "audio" || message.type === "voice";
+      if (!isVoice && (!message.body || message.type !== "chat")) return;
 
       const config = db.prepare("SELECT * FROM bot_configs WHERE user_id = ?").get(userId);
       if (!config) return;
@@ -295,8 +297,51 @@ export async function startBot(userId) {
         : [];
       if (allowedList.length > 0 && !allowedList.includes(senderNumber)) return;
 
-      const userText = message.body.trim();
-      console.log(`📨 User ${userId} — [${senderNumber}]: ${userText}`);
+      // ── Voice Note — transcribe first ────────────────────────────────────────
+      let userText = message.body?.trim() || "";
+      let isVoiceNote = false;
+
+      if (isVoice) {
+        try {
+          console.log(`🎙️ Voice note received from ${senderNumber} for user ${userId}`);
+          await safeSend(() => chat.sendStateTyping());
+
+          // Check if OpenAI key is configured
+          if (!process.env.OPENAI_API_KEY) {
+            await safeSend(() => message.reply("Maaf, fungsi voice note belum diaktifkan. Sila hantar mesej dalam teks ye 😊"));
+            return;
+          }
+
+          // Download audio from WhatsApp
+          const media = await message.downloadMedia();
+          if (!media?.data) {
+            await safeSend(() => message.reply("Maaf, tidak dapat memuat turun audio. Cuba hantar semula 🙏"));
+            return;
+          }
+
+          const audioBuffer = Buffer.from(media.data, "base64");
+          const { transcribeAudio } = await import("../services/whisper.js");
+          const transcribed = await transcribeAudio(audioBuffer, media.mimetype);
+
+          if (!transcribed || transcribed.length < 2) {
+            await safeSend(() => message.reply("Maaf, tidak dapat faham audio tersebut. Cuba hantar dalam teks ye 😊"));
+            return;
+          }
+
+          userText = transcribed;
+          isVoiceNote = true;
+          console.log(`🎙️ Transcribed for user ${userId}: "${userText}"`);
+
+        } catch (err) {
+          logBotError(userId, `Voice transcription error: ${err.message}`);
+          await safeSend(() => message.reply("Maaf, ada masalah memproses voice note. Sila hantar dalam teks 🙏"));
+          return;
+        }
+      }
+
+      if (!userText) return;
+      const logMessage = isVoiceNote ? `[🎙️ Voice] ${userText}` : userText;
+      console.log(`📨 User ${userId} — [${senderNumber}]: ${logMessage}`);
 
       if (userText.toLowerCase() === "!reset") {
         clearHistory(userId, contactId);
@@ -353,7 +398,7 @@ export async function startBot(userId) {
       // ── AI reply ─────────────────────────────────────────────────────────
       const reply = await askClaude(userId, contactId, userText, config);
       await safeSend(() => message.reply(reply));
-      try { db.prepare("INSERT INTO message_logs (user_id, sender, message, reply) VALUES (?, ?, ?, ?)").run(userId, senderNumber, userText, reply); } catch {}
+      try { db.prepare("INSERT INTO message_logs (user_id, sender, message, reply) VALUES (?, ?, ?, ?)").run(userId, senderNumber, isVoiceNote ? `[🎙️ Voice] ${userText}` : userText, reply); } catch {}
 
     } catch (err) {
       const isTargetClosed = err.message?.includes("Target closed") ||
