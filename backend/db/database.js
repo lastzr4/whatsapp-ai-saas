@@ -161,6 +161,7 @@ export function initDb() {
     { name: "guardrails_payment_keywords", sql: `INSERT OR IGNORE INTO bot_guardrails (key, name, description, is_enabled, config_json) VALUES
       ('payment_keywords', 'Kata Kunci Pencetus QR', 'Kata kunci yang mencetuskan bot untuk hantar QR pembayaran', 1, '{"keywords":["qr","qr code","bayar","bayaran","pembayaran","transfer","duitnow","duit now","maybank","cimb","rhb","tng","touch n go","touchngo","ewallet","e-wallet","nak beli","nak bayar","cara bayar","payment","pay"]}')
     ` },
+    { name: "global_knowledge_table", sql: `CREATE TABLE IF NOT EXISTS global_knowledge (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       description TEXT DEFAULT '',
