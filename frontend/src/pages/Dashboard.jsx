@@ -9,11 +9,10 @@ import {
 import { api, uploadFile } from "../lib/api.js";
 
 const NAV = [
-  { id:0, icon:Plug,        label:"Sambungan", full:"Sambungan" },
+  { id:0, icon:Plug,        label:"Bot",       full:"Sambungan" },
   { id:1, icon:Settings,    label:"Tetapan",   full:"Tetapan Bot" },
-  { id:2, icon:BookOpen,    label:"Knowledge", full:"Pengetahuan" },
-  { id:3, icon:CreditCard,  label:"QR",        full:"QR Bayaran" },
-  { id:4, icon:ScrollText,  label:"Log",       full:"Log Mesej" },
+  { id:2, icon:BookOpen,    label:"Ilmu",      full:"Pengetahuan" },
+  { id:3, icon:ScrollText,  label:"Log",       full:"Log Mesej" },
 ];
 
 const STATUS_LABEL = {
@@ -100,10 +99,78 @@ function Toast({ text, type, onDone }) {
   );
 }
 
+function QrPaymentSection({ config, setConfig, fetchConfig, showToast, qrBlobUrl, fetchQrImage, saving, saveConfig }) {
+  const handleQrUpload = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    e.target.value = "";
+    showToast("Memuat naik QR...","info");
+    try {
+      const token = localStorage.getItem("token");
+      const fd = new FormData(); fd.append("paymentQr", file);
+      const res = await fetch("/api/config/upload-qr", { method:"POST", headers:{ Authorization:`Bearer ${token}` }, body:fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await fetchConfig(); fetchQrImage();
+      showToast("✅ QR berjaya dimuat naik!");
+    } catch(err) { showToast(err.message,"error"); }
+  };
+  return (
+    <div style={{ maxWidth:520,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
+      <div className="card" style={{ padding:"20px 22px" }}>
+        <div style={{ fontWeight:700,fontSize:15,marginBottom:4 }}>💳 QR Pembayaran</div>
+        <p style={{ fontSize:13,color:"var(--muted)",marginBottom:20 }}>Bot hantar QR ini bila pelanggan tanya tentang bayaran</p>
+        {config.has_payment_qr ? (
+          <div style={{ textAlign:"center",marginBottom:20 }}>
+            <div style={{ position:"relative",display:"inline-block" }}>
+              <div style={{ borderRadius:16,border:"2px solid var(--border)",background:"#fff",padding:16,display:"inline-block",boxShadow:"0 4px 16px rgba(0,0,0,.06)" }}>
+                {qrBlobUrl
+                  ? <img src={qrBlobUrl} alt="QR" style={{ width:200,height:200,objectFit:"contain",display:"block",borderRadius:8 }}/>
+                  : <div style={{ width:200,height:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,background:"#f5f5f4",borderRadius:8 }}>
+                      <Camera size={32} style={{ color:"#d4d4d8" }}/>
+                      <button className="btn btn-default btn-sm" onClick={fetchQrImage}>Cuba Semula</button>
+                    </div>
+                }
+              </div>
+              <div style={{ position:"absolute",top:-8,right:-8,width:26,height:26,borderRadius:99,background:"var(--green)",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                <CheckCircle2 size={14} color="#fff"/>
+              </div>
+            </div>
+            <div style={{ fontWeight:700,fontSize:14,marginTop:14,marginBottom:4 }}>QR Aktif ✅</div>
+            <div style={{ fontSize:12,color:"var(--muted)",marginBottom:16 }}>Bot hantar QR ini secara automatik</div>
+            <label className="btn btn-outline" style={{ cursor:"pointer" }}>
+              <RotateCw size={14}/> Ganti QR
+              <input type="file" accept="image/png,image/jpeg,image/webp" style={{ display:"none" }} onChange={handleQrUpload}/>
+            </label>
+          </div>
+        ) : (
+          <div style={{ border:"2px dashed var(--border)",borderRadius:14,padding:36,textAlign:"center",background:"var(--muted-bg)",marginBottom:18 }}>
+            <Camera size={48} style={{ margin:"0 auto 12px",color:"#d4d4d8" }}/>
+            <div style={{ fontWeight:600,fontSize:14,marginBottom:6 }}>Belum ada QR</div>
+            <p style={{ fontSize:13,color:"var(--muted)",marginBottom:20 }}>Upload QR DuitNow, TNG, atau eWallet</p>
+            <label className="btn btn-default" style={{ cursor:"pointer" }}>
+              <Upload size={15}/> Upload QR
+              <input type="file" accept="image/png,image/jpeg,image/webp" style={{ display:"none" }} onChange={handleQrUpload}/>
+            </label>
+          </div>
+        )}
+        <div style={{ marginBottom:16 }}>
+          <label className="form-label">Teks Kapsyen QR</label>
+          <textarea className="input" style={{ minHeight:90,fontFamily:"inherit" }}
+            value={config.payment_caption} onChange={e=>setConfig({...config,payment_caption:e.target.value})}/>
+        </div>
+        <button className="btn btn-default" style={{ width:"100%" }} onClick={saveConfig} disabled={saving}>
+          {saving?<><span className="spinner spinner-white" style={{ width:15,height:15 }}/> Menyimpan...</>:"💾 Simpan Kapsyen"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const [tab, setTab]                   = useState(0);
+  const [settingsTab, setSettingsTab]   = useState(0); // 0=tetapan, 1=QR
   const [status, setStatus]             = useState({ status:"disconnected", is_running:false });
   const [config, setConfig]             = useState(null);
   const [configLoading, setConfigLoading] = useState(true);
@@ -170,7 +237,7 @@ export default function Dashboard() {
     prevStatusRef.current = status.status;
   }, [status.status]);
 
-  useEffect(() => { if (tab===4) fetchLogs(); }, [tab]);
+  useEffect(() => { if (tab===3) fetchLogs(); }, [tab]);
 
   const startBot   = async () => { await api("POST","/bot/start"); showToast("Bot sedang dihidupkan...","info"); };
   const stopBot    = async () => { await api("POST","/bot/stop");    showToast("Bot dihentikan","error"); };
@@ -630,9 +697,19 @@ export default function Dashboard() {
               </div>
             ) : config && (
             <div style={{ maxWidth:580,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
-              <div className="card" style={{ padding:"20px 22px" }}>
-                <div style={{ fontWeight:700,fontSize:15,marginBottom:4 }}>⚙️ Tetapan Bot</div>
-                <p style={{ fontSize:13,color:"var(--muted)",marginBottom:20 }}>Konfigurasi asas bot anda</p>
+              {/* Sub-tabs: Tetapan Bot | QR Bayaran */}
+              <div style={{ display:"flex",gap:4,background:"var(--surface-2,rgba(255,255,255,0.04))",borderRadius:10,padding:4,border:"1px solid var(--border-soft)" }}>
+                {[{id:0,label:"⚙️ Tetapan Bot"},{id:1,label:"💳 QR Bayaran"}].map(t=>(
+                  <button key={t.id} onClick={()=>setSettingsTab(t.id)}
+                    style={{ flex:1,padding:"7px 12px",borderRadius:7,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,
+                      background:settingsTab===t.id?"rgba(16,185,129,0.2)":"transparent",
+                      color:settingsTab===t.id?"#6ee7b7":"var(--muted)",
+                      transition:"all .15s" }}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              {settingsTab===0 && <>
                 <div style={{ display:"flex",flexDirection:"column",gap:16 }}>
                   <div>
                     <label className="form-label">Nama Bot</label>
@@ -658,6 +735,8 @@ export default function Dashboard() {
               <button className="btn btn-default btn-lg" style={{ width:"100%" }} onClick={saveConfig} disabled={saving}>
                 {saving?<><span className="spinner spinner-white" style={{ width:16,height:16 }}/> Menyimpan...</>:"💾 Simpan Tetapan"}
               </button>
+              </>}
+              {settingsTab===1 && <QrPaymentSection config={config} setConfig={setConfig} fetchConfig={fetchConfig} showToast={showToast} qrBlobUrl={qrBlobUrl} fetchQrImage={fetchQrImage} saving={saving} saveConfig={saveConfig}/>}
             </div>
           ))}
 
@@ -749,77 +828,8 @@ export default function Dashboard() {
             </div>
           ))}
 
-          {/* ── Tab 3: Payment QR ── */}
+          {/* ── Tab 3: Logs ── */}
           {tab===3 && (
-            configLoading ? <div style={{ textAlign:"center",padding:48 }}><div className="spinner" style={{ margin:"0 auto" }} /></div>
-            : configError ? (
-              <div className="card" style={{ padding:32,textAlign:"center",maxWidth:400,margin:"0 auto" }}>
-                <AlertCircle size={36} style={{ margin:"0 auto 12px",color:"var(--red)" }} />
-                <div style={{ fontWeight:600,marginBottom:8 }}>Gagal memuatkan tetapan</div>
-                <button className="btn btn-default btn-sm" onClick={fetchConfig} style={{ marginTop:8 }}>Cuba Semula</button>
-              </div>
-            ) : config && (
-            <div style={{ maxWidth:520,margin:"0 auto",display:"flex",flexDirection:"column",gap:14 }}>
-              <div className="card" style={{ padding:"20px 22px" }}>
-                <div style={{ fontWeight:700,fontSize:15,marginBottom:4 }}>💳 QR Pembayaran</div>
-                <p style={{ fontSize:13,color:"var(--muted)",marginBottom:20 }}>Bot hantar QR ini bila pelanggan tanya tentang bayaran</p>
-
-                {config.has_payment_qr ? (
-                  <div style={{ textAlign:"center",marginBottom:20 }}>
-                    <div style={{ position:"relative",display:"inline-block" }}>
-                      <div style={{ borderRadius:16,border:"2px solid var(--border)",background:"#fff",padding:16,display:"inline-block",boxShadow:"0 4px 16px rgba(0,0,0,.06)" }}>
-                        {qrBlobUrl ? (
-                          <img
-                            src={qrBlobUrl}
-                            alt="QR Pembayaran"
-                            style={{ width:200,height:200,objectFit:"contain",display:"block",borderRadius:8 }}
-                          />
-                        ) : (
-                          <div style={{ width:200,height:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,background:"#f5f5f4",borderRadius:8,padding:12 }}>
-                            <Camera size={32} style={{ color:"#d4d4d8" }} />
-                            <span style={{ fontSize:12,color:"var(--muted)",textAlign:"center",lineHeight:1.5 }}>Memuatkan...</span>
-                            <button className="btn btn-default btn-sm" onClick={fetchQrImage}>Cuba Semula</button>
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ position:"absolute",top:-8,right:-8,width:26,height:26,borderRadius:99,background:"var(--green)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(34,197,94,.4)" }}>
-                        <CheckCircle2 size={14} color="#fff" />
-                      </div>
-                    </div>
-                    <div style={{ fontWeight:700,fontSize:14,marginTop:14,marginBottom:4 }}>QR Pembayaran Aktif ✅</div>
-                    <div style={{ fontSize:12,color:"var(--muted)",marginBottom:16 }}>Bot akan hantar QR ini secara automatik</div>
-                    <label className="btn btn-outline" style={{ cursor:"pointer" }}>
-                      <RotateCw size={14} /> Ganti QR
-                      <input type="file" accept="image/png,image/jpeg,image/webp" style={{ display:"none" }} onChange={e=>handleQrUpload(e)} />
-                    </label>
-                  </div>
-                ) : (
-                  <div style={{ border:"2px dashed var(--border)",borderRadius:14,padding:36,textAlign:"center",background:"var(--muted-bg)",marginBottom:18 }}>
-                    <Camera size={48} style={{ margin:"0 auto 12px",color:"#d4d4d8" }} />
-                    <div style={{ fontWeight:600,fontSize:14,marginBottom:6 }}>Belum ada QR Pembayaran</div>
-                    <p style={{ fontSize:13,color:"var(--muted)",marginBottom:4 }}>Upload imej QR DuitNow, TNG, atau eWallet anda</p>
-                    <p style={{ fontSize:12,color:"#a8a29e",marginBottom:20 }}>PNG, JPG atau WEBP · Saiz max 5MB</p>
-                    <label className="btn btn-default" style={{ cursor:"pointer" }}>
-                      <Upload size={15} /> Upload QR
-                      <input type="file" accept="image/png,image/jpeg,image/webp" style={{ display:"none" }} onChange={e=>handleQrUpload(e)} />
-                    </label>
-                  </div>
-                )}
-
-                <div style={{ marginBottom:16 }}>
-                  <label className="form-label">Teks Kapsyen QR</label>
-                  <textarea className="input" style={{ minHeight:90,fontFamily:"inherit" }}
-                    value={config.payment_caption} onChange={e=>setConfig({...config,payment_caption:e.target.value})} />
-                </div>
-                <button className="btn btn-default" style={{ width:"100%" }} onClick={saveConfig} disabled={saving}>
-                  {saving?<><span className="spinner spinner-white" style={{ width:15,height:15 }}/> Menyimpan...</>:"💾 Simpan Kapsyen"}
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {/* ── Tab 4: Logs ── */}
-          {tab===4 && (
             <div style={{ maxWidth:760,margin:"0 auto" }}>
               <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,gap:8,flexWrap:"wrap" }}>
                 <div style={{ fontWeight:700,fontSize:15 }}>
@@ -893,13 +903,34 @@ export default function Dashboard() {
       </main>
 
       {/* Mobile Bottom Nav */}
-      <nav className="bottom-nav">
+      <nav className="bottom-nav" style={{ gridTemplateColumns:`repeat(${NAV.length + (user.is_admin?3:2)},1fr)` }}>
         {NAV.map(n => (
           <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
-            <n.icon />
-            {n.label}
+            <n.icon size={18}/>
+            <span style={{ fontSize:9 }}>{n.label}</span>
           </button>
         ))}
+        {user.is_admin && (
+          <button className="bottom-nav-item" onClick={()=>navigate("/admin")} style={{ color:"#a78bfa" }}>
+            <ShieldCheck size={18}/>
+            <span style={{ fontSize:9 }}>Admin</span>
+          </button>
+        )}
+        {/* Avatar + name */}
+        <button className="bottom-nav-item" style={{ gap:2 }} onClick={()=>{}}>
+          <div style={{ width:22,height:22,borderRadius:6,background:"linear-gradient(135deg,#10b981,#059669)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#fff" }}>
+            {user.name?.[0]?.toUpperCase()||"U"}
+          </div>
+          <span style={{ fontSize:8.5,color:"var(--muted)",maxWidth:40,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{user.name?.split(" ")[0]}</span>
+        </button>
+        {/* Log Keluar */}
+        <button className="bottom-nav-item" style={{ color:"var(--red)" }} onClick={async()=>{
+          try{await api("POST","/auth/logout");}catch{}
+          localStorage.clear(); navigate("/login");
+        }}>
+          <LogOut size={18}/>
+          <span style={{ fontSize:9 }}>Keluar</span>
+        </button>
       </nav>
     </div>
   );
