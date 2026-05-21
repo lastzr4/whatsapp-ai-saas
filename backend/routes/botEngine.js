@@ -17,7 +17,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // Init guardrails with DB reference
 initGuardrails(db);
 
-const botInstances        = new Map(); // userId -> client
+const botInstances        = new Map(); // userId -> client ...
 const conversationHistories = new Map();
 const reconnectTimers     = new Map(); // userId -> timer
 const reconnectAttempts   = new Map(); // userId -> count
