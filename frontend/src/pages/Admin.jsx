@@ -991,13 +991,13 @@ function ConfigEditor({ rule, onSave, onCancel, saving }) {
 
 // ── Main Admin ────────────────────────────────────────────────────────────────
 const ADMIN_NAV = [
-  { id:0, icon:LayoutDashboard, label:"Overview" },
-  { id:1, icon:Users,           label:"Tenants" },
-  { id:2, icon:ScrollText,      label:"Semua Log" },
-  { id:3, icon:Database,        label:"Database" },
-  { id:4, icon:ShieldCheck,     label:"Plan Config" },
-  { id:5, icon:BookOpen,        label:"Knowledge Base" },
-  { id:6, icon:ShieldCheck,     label:"Guardrails" },
+  { id:0, icon:LayoutDashboard, label:"Overview",    short:"Overview" },
+  { id:1, icon:Users,           label:"Tenants",     short:"Tenants" },
+  { id:2, icon:ScrollText,      label:"Log",         short:"Log" },
+  { id:3, icon:Database,        label:"Database",    short:"DB" },
+  { id:4, icon:ShieldCheck,     label:"Plan Config", short:"Plan" },
+  { id:5, icon:BookOpen,        label:"Knowledge",   short:"Know" },
+  { id:6, icon:Shield,          label:"Guardrails",  short:"Rules" },
 ];
 
 export default function Admin() {
@@ -1270,16 +1270,23 @@ export default function Admin() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="bottom-nav" style={{ gridTemplateColumns:`repeat(${ADMIN_NAV.length+1},1fr)`,overflowX:"auto" }}>
+      <nav className="bottom-nav" style={{ gridTemplateColumns:`repeat(${ADMIN_NAV.length+2},1fr)`,overflowX:"auto" }}>
         {ADMIN_NAV.map(n=>(
-          <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)} style={{ minWidth:52 }}>
-            <n.icon size={18}/>
-            <span style={{ fontSize:9,whiteSpace:"nowrap" }}>{n.label}</span>
+          <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)} style={{ minWidth:44 }}>
+            <n.icon size={17}/>
+            <span style={{ fontSize:8.5,whiteSpace:"nowrap" }}>{n.short}</span>
           </button>
         ))}
-        <button className="bottom-nav-item" style={{ minWidth:52 }} onClick={()=>navigate("/dashboard")}>
-          <Bot size={18}/>
-          <span style={{ fontSize:9 }}>User</span>
+        <button className="bottom-nav-item" style={{ minWidth:44 }} onClick={()=>navigate("/dashboard")}>
+          <Bot size={17}/>
+          <span style={{ fontSize:8.5 }}>User</span>
+        </button>
+        <button className="bottom-nav-item" style={{ minWidth:44, color:"var(--red)" }} onClick={async()=>{
+          try{await fetch("/api/auth/logout",{method:"POST",headers:{Authorization:`Bearer ${localStorage.getItem("token")}`}});}catch{}
+          localStorage.clear(); navigate("/login");
+        }}>
+          <LogOut size={17}/>
+          <span style={{ fontSize:8.5 }}>Keluar</span>
         </button>
       </nav>
 
