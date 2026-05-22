@@ -710,6 +710,9 @@ export default function Dashboard() {
                 ))}
               </div>
               {settingsTab===0 && <>
+                <div className="card" style={{ padding:"20px 22px" }}>
+                  <div style={{ fontWeight:700,fontSize:15,marginBottom:4 }}>⚙️ Tetapan Bot</div>
+                  <p style={{ fontSize:13,color:"var(--muted)",marginBottom:16 }}>Konfigurasi asas bot anda</p>
                 <div style={{ display:"flex",flexDirection:"column",gap:16 }}>
                   <div>
                     <label className="form-label">Nama Bot</label>
@@ -731,7 +734,7 @@ export default function Dashboard() {
                     </label>
                   </div>
                 </div>
-              </div>
+                </div>
               <button className="btn btn-default btn-lg" style={{ width:"100%" }} onClick={saveConfig} disabled={saving}>
                 {saving?<><span className="spinner spinner-white" style={{ width:16,height:16 }}/> Menyimpan...</>:"💾 Simpan Tetapan"}
               </button>
